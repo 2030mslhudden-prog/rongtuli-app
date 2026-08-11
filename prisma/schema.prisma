@@ -1,0 +1,78 @@
+// Prisma schema for Rongtuli Digital Marketplace
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         String    @default("AUTHOR") // "CUSTOMER" | "AUTHOR" | "ADMIN"
+  accountType  String    @default("PERSONAL") // "PERSONAL" | "COMMERCIAL"
+  phone        String?
+  address      String?
+  avatarUrl    String?
+  bio          String?
+  website      String?
+  payoutMethod String?   @default("bkash")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  products     Product[]
+  orders       Order[]
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  title       String
+  description String
+  category    String
+  price       Float
+  imageUrl    String
+  fileUrl     String?
+  tags        String?
+  status      String      @default("ACTIVE") // "ACTIVE" | "PENDING" | "DRAFT"
+  salesCount  Int         @default(0)
+  viewsCount  Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  authorId    String
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  orderNumber   String      @unique @default(uuid())
+  totalAmount   Float
+  subtotal      Float
+  tax           Float
+  status        String      @default("PAID") // "PAID" | "PENDING" | "FAILED"
+  paymentMethod String      @default("bkash") // "card" | "bkash" | "nagad" | "rocket" | "bank"
+  createdAt     DateTime    @default(now())
+
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  licenseType String   @default("Personal")
+  price       Float
+  quantity    Int      @default(1)
+
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
