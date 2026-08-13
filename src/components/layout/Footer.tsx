@@ -25,10 +25,10 @@ export default function Footer() {
           <Link href="/terms" className="hover:text-primary transition-colors font-medium">
             Terms & Conditions
           </Link>
-          <Link href="#" className="hover:text-primary transition-colors font-medium">
+          <Link href="/contact" className="hover:text-primary transition-colors font-medium">
             Contact Us
           </Link>
-          <Link href="#" className="hover:text-primary transition-colors font-medium">
+          <Link href="/about" className="hover:text-primary transition-colors font-medium">
             About Us
           </Link>
         </div>
