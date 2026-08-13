@@ -101,7 +101,7 @@ export default function PrivacyPolicyPage() {
             <h2 className="mb-3 text-xl font-semibold text-slate-900">9. Contact Us</h2>
             <p>
               If you have any questions about this Privacy Policy or how your information is handled, please
-              contact us at <a href="mailto:hello@rongtuli.com" className="font-medium text-primary underline">hello@rongtuli.com</a>.
+              contact us at <a href="mailto:mslhfr1999@gmail.com" className="font-medium text-primary underline">mslhfr1999@gmail.com</a>.
             </p>
           </section>
         </div>

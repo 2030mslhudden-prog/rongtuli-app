@@ -133,7 +133,7 @@ export default function TermsPage() {
             <h2 className="mb-3 text-xl font-semibold text-slate-900">12. Contact</h2>
             <p>
               For account, payment, refund, privacy, or legal inquiries, please contact us at
-              <a href="mailto:hello@rongtuli.com" className="font-medium text-primary underline"> hello@rongtuli.com</a>.
+              <a href="mailto:mslhfr1999@gmail.com" className="font-medium text-primary underline"> mslhfr1999@gmail.com</a>.
             </p>
           </section>
         </div>

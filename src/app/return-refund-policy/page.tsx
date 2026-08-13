@@ -99,7 +99,7 @@ export default function ReturnRefundPolicyPage() {
             <h2 className="mb-3 text-xl font-semibold text-slate-900">8. Contact</h2>
             <p>
               For refund requests, order issues, delivery concerns, or complaint resolution, please contact us at
-              <a href="mailto:hello@rongtuli.com" className="font-medium text-primary underline"> hello@rongtuli.com</a>.
+              <a href="mailto:mslhfr1999@gmail.com" className="font-medium text-primary underline"> mslhfr1999@gmail.com</a>.
             </p>
           </section>
         </div>
