@@ -21,6 +21,11 @@ const hind = Hind_Siliguri({
 export const metadata: Metadata = {
   title: "Rongtuli - Digital Marketplace",
   description: "Art of Imagination - Premium Design Assets",
+  icons: {
+    icon: "/images/Favicon.jpg",
+    shortcut: "/images/Favicon.jpg",
+    apple: "/images/Favicon.jpg",
+  },
 };
 
 export default function RootLayout({
