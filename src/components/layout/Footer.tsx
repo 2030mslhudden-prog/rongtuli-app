@@ -16,14 +16,14 @@ export default function Footer() {
           />
         </Link>
         <div className="flex flex-wrap justify-center gap-8 text-body-sm font-body-sm text-on-surface-variant">
-          <Link href="#" className="hover:text-primary transition-colors font-medium">
+          <Link href="/privacy-policy" className="hover:text-primary transition-colors font-medium">
             Privacy Policy
           </Link>
-          <Link href="#" className="hover:text-primary transition-colors font-medium">
-            Terms of Service
+          <Link href="/return-refund-policy" className="hover:text-primary transition-colors font-medium">
+            Return & Refund Policy
           </Link>
-          <Link href="#" className="hover:text-primary transition-colors font-medium">
-            Licensing
+          <Link href="/terms" className="hover:text-primary transition-colors font-medium">
+            Terms & Conditions
           </Link>
           <Link href="#" className="hover:text-primary transition-colors font-medium">
             Contact Us
