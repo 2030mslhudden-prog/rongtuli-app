@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { comparePassword, setSessionCookie } from '@/lib/auth';
+import { comparePassword, getEffectiveUserRole, setSessionCookie, SUPER_ADMIN_EMAIL } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -33,11 +33,20 @@ export async function POST(request: Request) {
       );
     }
 
+    const effectiveRole = getEffectiveUserRole(user.email, user.role);
+
+    if (user.email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { role: 'ADMIN' },
+      });
+    }
+
     await setSessionCookie({
       userId: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
+      role: effectiveRole,
     });
 
     return NextResponse.json({
@@ -47,7 +56,7 @@ export async function POST(request: Request) {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: effectiveRole,
       },
     });
   } catch (error: any) {

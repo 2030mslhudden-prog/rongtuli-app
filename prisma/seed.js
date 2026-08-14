@@ -79,6 +79,36 @@ const sampleProducts = [
 ];
 
 async function main() {
+  const adminEmail = 'mslhfr1999@gmail.com';
+  const adminPassword = 'Admin@Rongtuli2026';
+
+  let adminUser = await prisma.user.findUnique({
+    where: { email: adminEmail },
+  });
+
+  if (!adminUser) {
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    adminUser = await prisma.user.create({
+      data: {
+        name: 'Rongtuli Super Admin',
+        email: adminEmail,
+        passwordHash,
+        role: 'ADMIN',
+        accountType: 'COMMERCIAL',
+        phone: '+880 1711-000000',
+        address: 'Dhaka, Bangladesh',
+        bio: 'Platform administrator with full dashboard access.',
+      },
+    });
+    console.log('Super admin created:', adminUser.email);
+  } else {
+    adminUser = await prisma.user.update({
+      where: { id: adminUser.id },
+      data: { role: 'ADMIN', name: adminUser.name || 'Rongtuli Super Admin' },
+    });
+    console.log('Super admin ensured:', adminUser.email);
+  }
+
   let user = await prisma.user.findUnique({
     where: { email: 'demo@rongtuli.com' },
   });

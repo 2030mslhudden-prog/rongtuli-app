@@ -7,12 +7,23 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 
 const TOKEN_COOKIE_NAME = 'rongtuli_auth_token';
+export const SUPER_ADMIN_EMAIL = 'mslhfr1999@gmail.com';
 
 export interface UserSessionPayload {
   userId: string;
   email: string;
   name: string;
   role: string;
+}
+
+export function getEffectiveUserRole(email?: string, role?: string): string {
+  const normalizedEmail = email?.toLowerCase().trim() ?? '';
+  if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    return 'ADMIN';
+  }
+
+  const normalizedRole = (role ?? 'AUTHOR').toUpperCase();
+  return ['ADMIN', 'AUTHOR', 'CUSTOMER'].includes(normalizedRole) ? normalizedRole : 'AUTHOR';
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -41,13 +52,18 @@ export async function verifyToken(token: string): Promise<UserSessionPayload | n
 }
 
 export async function setSessionCookie(payload: UserSessionPayload) {
-  const token = await signToken(payload);
+  const effectivePayload = {
+    ...payload,
+    role: getEffectiveUserRole(payload.email, payload.role),
+  };
+
+  const token = await signToken(effectivePayload);
   const cookieStore = await cookies();
   cookieStore.set(TOKEN_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60, // 7 days
+    maxAge: 7 * 24 * 60 * 60,
     path: '/',
   });
 }
@@ -67,5 +83,12 @@ export async function getCurrentSession(): Promise<UserSessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
   if (!token) return null;
-  return await verifyToken(token);
+
+  const session = await verifyToken(token);
+  if (!session) return null;
+
+  return {
+    ...session,
+    role: getEffectiveUserRole(session.email, session.role),
+  };
 }
