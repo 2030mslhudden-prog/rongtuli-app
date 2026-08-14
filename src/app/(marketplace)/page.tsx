@@ -30,8 +30,8 @@ const featuredCards = [
 export default function HomePage() {
   return (
     <main className="bg-background text-on-background font-body-md antialiased transition-colors duration-300">
-      <header className="bg-surface/80 backdrop-blur-md border-outline-variant w-full sticky top-0 z-50 transition-shadow hover:shadow-sm">
-        <div className="flex justify-between items-center w-full px-margin-desktop py-0 max-w-container-max mx-auto md:px-margin-desktop px-margin-mobile">
+      <header className="bg-surface/80 backdrop-blur-md border-outline-variant w-full sticky top-0 z-50 transition-shadow hover:shadow-sm border-b">
+        <div className="flex justify-between items-center w-full px-margin-desktop py-2.5 max-w-container-max mx-auto md:px-margin-desktop px-margin-mobile">
           <div className="flex items-center">
             <Link href="#" aria-label="Rongtuli home">
               <img
@@ -42,7 +42,7 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-6 py-4">
+          <div className="flex items-center gap-6 py-0">
             <Link href="#" className="bg-primary text-white px-4 py-1.5 rounded-full text-[12px] font-bold tracking-wider hover:bg-primary-container hover:scale-105 transition-all shadow-sm hover:shadow uppercase">
               Free
             </Link>
