@@ -10,11 +10,93 @@ export default function UploadPage() {
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('');
   const [selectedProductType, setSelectedProductType] = useState('print');
+  const [banner, setBanner] = useState<File | null>(null);
+  const [sourceFiles, setSourceFiles] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const sourceFilesInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragging(false);
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+      setBanner(files[0]);
+    }
+  };
+
+  const handleBannerFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setBanner(e.target.files[0]);
+    }
+  };
+
+  const handleSourceFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSourceFiles(e.target.files[0]);
+    }
+  };
+
+  const validateForm = () => {
+    if (!title.trim()) {
+      alert('Please enter a product title');
+      return false;
+    }
+    if (!description.trim()) {
+      alert('Please enter a product description');
+      return false;
+    }
+    if (!price.trim()) {
+      alert('Please enter a price');
+      return false;
+    }
+    if (!category.trim()) {
+      alert('Please select a category');
+      return false;
+    }
+    if (!banner) {
+      alert('Please upload a banner image');
+      return false;
+    }
+    return true;
+  };
+
+  const handlePublish = async () => {
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    try {
+      console.log('Publishing product:', { title, description, price, category, selectedProductType, banner, sourceFiles });
+      alert('Product "' + title + '" published successfully!');
+      setTitle('');
+      setDescription('');
+      setPrice('');
+      setCategory('');
+      setBanner(null);
+      setSourceFiles(null);
+    } catch (error) {
+      console.error('Error publishing product:', error);
+      alert('Error publishing product');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!title.trim()) {
+      alert('Please enter at least a product title for draft');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      console.log('Saving draft:', { title, description, price, category, selectedProductType });
+      alert('Draft "' + title + '" saved successfully!');
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      alert('Error saving draft');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -59,9 +141,9 @@ export default function UploadPage() {
         </div>
 
         <div className="mt-auto pt-6">
-          <button className="w-full flex items-center justify-center space-x-2 bg-[#42b72a] text-white py-3 px-4 rounded-lg font-label-md text-label-md hover:bg-[#36a420] transition-colors shadow-sm hover:shadow-md">
-            <span className="material-symbols-outlined">upload</span>
-            <span>Upload Asset</span>
+          <button type="button" onClick={handlePublish} disabled={isSubmitting} className="w-full flex items-center justify-center space-x-2 bg-[#42b72a] text-white py-3 px-4 rounded-lg font-label-md text-label-md hover:bg-[#36a420] disabled:bg-[#999] disabled:cursor-not-allowed transition-colors shadow-sm hover:shadow-md">
+            <span className="material-symbols-outlined">{isSubmitting ? 'hourglass_empty' : 'upload'}</span>
+            <span>{isSubmitting ? 'Publishing...' : 'Upload Asset'}</span>
           </button>
         </div>
       </nav>
@@ -105,12 +187,12 @@ export default function UploadPage() {
               </div>
 
               <div className="mt-4 md:mt-0 flex space-x-3">
-                <button className="px-5 py-2.5 rounded-lg border-2 border-[#ccd0d5] text-[#1c1e21] font-label-md text-label-md hover:border-[#1877f2] hover:text-[#1877f2] hover:bg-[#1877f2]/5 transition-all focus:ring-2 ring-[#1877f2]/20 outline-none shadow-sm">
-                  Save to Draft
+                <button type="button" onClick={handleSaveDraft} disabled={isSubmitting} className="px-5 py-2.5 rounded-lg border-2 border-[#ccd0d5] text-[#1c1e21] font-label-md text-label-md hover:border-[#1877f2] hover:text-[#1877f2] hover:bg-[#1877f2]/5 disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:ring-2 ring-[#1877f2]/20 outline-none shadow-sm">
+                  {isSubmitting ? 'Saving...' : 'Save to Draft'}
                 </button>
-                <button className="px-5 py-2.5 rounded-lg bg-[#1877f2] text-white font-label-md text-label-md hover:bg-[#1469d4] transition-all shadow-sm hover:shadow-md focus:ring-2 ring-[#1877f2]/20 outline-none flex items-center space-x-2">
-                  <span className="material-symbols-outlined text-[18px]">cloud_upload</span>
-                  <span>Publish Asset</span>
+                <button type="button" onClick={handlePublish} disabled={isSubmitting} className="px-5 py-2.5 rounded-lg bg-[#1877f2] text-white font-label-md text-label-md hover:bg-[#1469d4] disabled:bg-[#999] disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md focus:ring-2 ring-[#1877f2]/20 outline-none flex items-center space-x-2">
+                  <span className="material-symbols-outlined text-[18px]">{isSubmitting ? 'hourglass_empty' : 'cloud_upload'}</span>
+                  <span>{isSubmitting ? 'Publishing...' : 'Publish Asset'}</span>
                 </button>
               </div>
             </div>
@@ -156,12 +238,13 @@ export default function UploadPage() {
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
-                            fileInputRef.current?.click();
+                            bannerInputRef.current?.click();
                           }}
                         >
                           Browse Files
                         </button>
-                        <input ref={fileInputRef} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" type="file" />
+                        <input ref={bannerInputRef} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" type="file" onChange={handleBannerFileSelect} />
+                        {banner && <p className="absolute bottom-2 left-2 text-sm text-green-600 font-bold">✓ {banner.name}</p>}
                       </div>
                     </div>
 
@@ -192,12 +275,12 @@ export default function UploadPage() {
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
-                            fileInputRef.current?.click();
+                            sourceFilesInputRef.current?.click();
                           }}
                         >
                           Browse
                         </button>
-                        <input accept=".zip,.rar" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" type="file" />
+                        <input ref={sourceFilesInputRef} accept=".zip,.rar,.7z,.tar" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" type="file" onChange={handleSourceFilesSelect} />
                       </div>
                     </div>
                   </div>
@@ -210,7 +293,7 @@ export default function UploadPage() {
                   </h2>
                   <div className="space-y-6">
                     <div>
-                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2" htmlFor="product-title">Product Title</label>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2" htmlFor="product-title">Product Title *</label>
                       <input
                         className="w-full bg-[#f0f2f5] border border-[#ccd0d5] rounded-lg px-4 py-3 font-body-md text-body-md text-[#1c1e21] focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] outline-none transition-shadow placeholder:text-[#606770]/50"
                         id="product-title"
@@ -218,12 +301,13 @@ export default function UploadPage() {
                         type="text"
                         value={title}
                         onChange={(event) => setTitle(event.target.value)}
+                        required
                       />
                     </div>
 
                     <div>
                       <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2 flex justify-between items-end">
-                        <span>Description</span>
+                        <span>Description *</span>
                         <span className="font-body-sm text-[11px] text-[#606770] font-normal">Markdown supported</span>
                       </label>
 
@@ -242,6 +326,7 @@ export default function UploadPage() {
                         rows={6}
                         value={description}
                         onChange={(event) => setDescription(event.target.value)}
+                        required
                       ></textarea>
                     </div>
                   </div>
