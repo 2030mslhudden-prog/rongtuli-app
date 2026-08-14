@@ -1,7 +1,18 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  accountType: string;
+  phone?: string;
+  bio?: string;
+}
 
 export default function SettingsPage() {
+  const [user, setUser] = useState<User | null>(null);
   const [profileName, setProfileName] = useState('Creative Author');
   const [bio, setBio] = useState('Passionate designer creating premium digital assets for the creative community.');
   const [website, setWebsite] = useState('https://creativeauthor.com');
@@ -14,6 +25,20 @@ export default function SettingsPage() {
   });
   const [paymentMethod, setPaymentMethod] = useState('bkash');
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user);
+          setProfileName(data.user.name);
+          setEmail(data.user.email);
+          if (data.user.bio) setBio(data.user.bio);
+        }
+      })
+      .catch(() => console.log('Failed to load user'));
+  }, []);
 
   const handleSave = () => {
     setSaved(true);
@@ -140,19 +165,30 @@ export default function SettingsPage() {
         {/* Account Info Sidebar */}
         <div className="flex flex-col gap-6">
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm">
-            <h3 className="text-label-md font-label-md text-on-surface font-bold mb-4">Account Plan</h3>
+            <h3 className="text-label-md font-label-md text-on-surface font-bold mb-4">Account Details</h3>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-primary-fixed rounded-lg flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: '"FILL" 1' }}>workspace_premium</span>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                user?.role === 'ADMIN' 
+                  ? 'bg-error-container' 
+                  : 'bg-primary-fixed'
+              }`}>
+                <span className="material-symbols-outlined" style={{ 
+                  fontVariationSettings: '"FILL" 1',
+                  color: user?.role === 'ADMIN' ? '#d11c47' : '#1F6FEB'
+                }}>
+                  {user?.role === 'ADMIN' ? 'admin_panel_settings' : 'workspace_premium'}
+                </span>
               </div>
               <div>
-                <p className="text-label-md font-label-md text-on-surface font-bold">Pro Member</p>
-                <p className="text-body-sm font-body-sm text-on-surface-variant">Active since Jan 2025</p>
+                <p className="text-label-md font-label-md text-on-surface font-bold">{user?.role || 'Member'}</p>
+                <p className="text-body-sm font-body-sm text-on-surface-variant">{user?.accountType || 'Personal'}</p>
               </div>
             </div>
-            <button className="w-full py-2 px-4 bg-primary text-on-primary rounded-lg text-label-sm font-label-sm hover:opacity-90 transition-opacity">
-              Upgrade Plan
-            </button>
+            {user?.role !== 'ADMIN' && (
+              <button className="w-full py-2 px-4 bg-primary text-on-primary rounded-lg text-label-sm font-label-sm hover:opacity-90 transition-opacity">
+                Upgrade Plan
+              </button>
+            )}
           </div>
 
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm">

@@ -20,6 +20,7 @@ interface DashboardSidebarProps {
 interface UserProfile {
   name: string;
   email: string;
+  role?: string;
   accountType?: string;
 }
 
@@ -72,7 +73,7 @@ export default function DashboardSidebar({ mobileOpen, setMobileOpen }: Dashboar
                 {user ? user.name : 'Creative Author'}
               </h3>
               <p className="text-label-sm font-label-sm text-secondary">
-                {user?.accountType ? `${user.accountType} Member` : 'Pro Member'}
+                {user?.role ? `${user.role}` : 'Author'} {user?.accountType && user.role !== 'ADMIN' ? `(${user.accountType})` : ''}
               </p>
             </div>
           </div>
