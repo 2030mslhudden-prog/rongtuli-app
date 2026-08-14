@@ -4,11 +4,10 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 const navItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-  { label: 'My Assets', href: '/dashboard/assets', icon: 'palette' },
-  { label: 'Analytics', href: '/dashboard/analytics', icon: 'insights' },
-  { label: 'Earnings', href: '/dashboard/earnings', icon: 'payments' },
-  { label: 'Upload New', href: '/dashboard/upload', icon: 'cloud_upload' },
+  { label: 'Home', href: '/dashboard', icon: 'dashboard' },
+  { label: 'Products', href: '/dashboard/assets', icon: 'inventory_2' },
+  { label: 'Sales', href: '/dashboard/earnings', icon: 'payments' },
+  { label: 'Custom Orders', href: '/dashboard/analytics', icon: 'shopping_cart_checkout' },
   { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
 ];
 
@@ -47,7 +46,6 @@ export default function DashboardSidebar({ mobileOpen, setMobileOpen }: Dashboar
 
   return (
     <>
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-40 md:hidden"
@@ -55,32 +53,31 @@ export default function DashboardSidebar({ mobileOpen, setMobileOpen }: Dashboar
         />
       )}
       <nav
-        className={`bg-surface-container-low border-r border-outline-variant h-full w-64 fixed left-0 top-0 flex-col py-6 px-4 gap-2 z-50 flex transition-transform duration-300 ease-in-out
+        className={`h-screen w-64 fixed left-0 top-0 bg-surface-container-lowest/80 backdrop-blur-md border-r border-surface-variant/30 z-50 flex flex-col py-8 px-6 transition-transform duration-300 ease-in-out
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        {/* Logo + Author */}
-        <div className="mb-8 px-4 flex flex-col items-start gap-4">
-          <Link href="/" className="text-headline-md font-headline-md font-bold text-primary tracking-tight">
-            Rongtuli
-          </Link>
-          <div className="flex items-center gap-3 w-full">
-            <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0 text-headline-md font-bold uppercase">
-              {user ? user.name.charAt(0) : 'C'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-label-md font-label-md text-on-surface font-bold truncate">
-                {user ? user.name : 'Creative Author'}
-              </h3>
-              <p className="text-label-sm font-label-sm text-secondary">
-                {user?.role ? `${user.role}` : 'Author'} {user?.accountType && user.role !== 'ADMIN' ? `(${user.accountType})` : ''}
-              </p>
-            </div>
+        <div className="flex items-center gap-4 mb-10">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shadow-sm">
+            <span className="material-symbols-outlined text-primary text-3xl">palette</span>
+          </div>
+          <div>
+            <h1 className="font-headline-md text-headline-md font-bold text-primary">Rongtuli</h1>
+            <p className="font-label-sm text-label-sm text-on-surface-variant">Design Marketplace</p>
           </div>
         </div>
 
-        {/* Nav Links */}
-        <div className="flex-1 flex flex-col gap-1">
+        <div className="flex items-center gap-3 px-2 mb-8 p-3 rounded-2xl bg-surface-container-low border border-white/50 shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0 text-headline-md font-bold uppercase">
+            {user ? user.name.charAt(0) : 'A'}
+          </div>
+          <div className="flex flex-col truncate">
+            <span className="font-label-md text-label-md text-on-surface truncate">{user ? user.name : 'Admin Profile'}</span>
+            <span className="font-body-sm text-body-sm text-on-surface-variant truncate">{user?.role ? user.role : 'Design Admin'}</span>
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col space-y-2 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -88,30 +85,31 @@ export default function DashboardSidebar({ mobileOpen, setMobileOpen }: Dashboar
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                className={`flex items-center gap-4 px-5 py-4 rounded-3xl transition-colors ${
                   isActive
-                    ? 'bg-secondary-container text-on-secondary-container font-bold'
-                    : 'text-on-surface-variant hover:bg-surface-container-high'
+                    ? 'text-secondary font-bold bg-secondary-container/40'
+                    : 'text-on-surface-variant hover:text-secondary hover:bg-secondary-container/20'
                 }`}
               >
-                <span
-                  className="material-symbols-outlined"
-                  style={isActive ? { fontVariationSettings: '"FILL" 1' } : undefined}
-                >
+                <span className="material-symbols-outlined" style={isActive ? { fontVariationSettings: '"FILL" 1' } : undefined}>
                   {item.icon}
                 </span>
-                <span className="text-label-md font-label-md">{item.label}</span>
+                <span className="font-label-md text-label-md">{item.label}</span>
               </Link>
             );
           })}
         </div>
 
-        {/* Footer CTA */}
-        <div className="mt-auto flex flex-col gap-4">
-          <button className="w-full py-3 px-4 bg-primary text-on-primary text-label-md font-label-md rounded-lg hover:opacity-90 transition-opacity shadow-sm">
-            Go Premium
-          </button>
-          <div className="flex flex-col gap-1 border-t border-outline-variant pt-4">
+        <div className="mt-auto pt-6">
+          <Link
+            href="/dashboard/upload"
+            className="w-full flex items-center justify-center gap-2 bg-primary-container text-on-primary py-3 px-4 rounded-lg font-label-md text-label-md hover:bg-surface-tint transition-colors shadow-sm hover:shadow-md"
+          >
+            <span className="material-symbols-outlined">upload</span>
+            <span>Upload Asset</span>
+          </Link>
+
+          <div className="flex flex-col gap-1 border-t border-outline-variant pt-4 mt-4">
             <a href="#" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all">
               <span className="material-symbols-outlined text-[20px]">help_outline</span>
               <span className="text-label-sm font-label-sm">Support</span>
