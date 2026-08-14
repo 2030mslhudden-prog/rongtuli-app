@@ -1,470 +1,376 @@
 'use client';
-import React, { useState, useCallback, useRef } from 'react';
+
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-
-interface UploadedFile {
-  id: string;
-  name: string;
-  type: 'main' | 'thumbnail' | 'extra';
-  size: string;
-  status: 'uploading' | 'done' | 'error';
-  progress: number;
-  previewUrl?: string;
-  file?: File;
-}
-
-const STEPS = ['Upload Files', 'Details', 'Review'];
 
 export default function UploadPage() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
-  const [category, setCategory] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('0');
-  const [tags, setTags] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [price, setPrice] = useState('');
+  const [category, setCategory] = useState('');
+  const [selectedProductType, setSelectedProductType] = useState('print');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const simulateUpload = useCallback((file: File): UploadedFile => {
-    const isImage = file.type.startsWith('image/');
-    const isThumbnail = isImage && files.length === 0 || (isImage && !files.find(f => f.type === 'thumbnail'));
-    const type: UploadedFile['type'] = isThumbnail ? 'thumbnail' : (files.length === 0 ? 'main' : 'extra');
-    const sizeKb = file.size / 1024;
-    const size = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb.toFixed(0)} KB`;
-    const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
-
-    if (isImage && type === 'thumbnail') {
-      setThumbnailPreview(previewUrl || null);
-    }
-
-    return {
-      id: Math.random().toString(36).slice(2),
-      name: file.name,
-      type,
-      size,
-      status: 'uploading',
-      progress: 0,
-      previewUrl,
-      file,
-    };
-  }, [files]);
-
-  const handleFiles = useCallback((fileList: FileList | null) => {
-    if (!fileList) return;
-    const newFiles = Array.from(fileList).map((file) => simulateUpload(file));
-    setFiles(prev => [...prev, ...newFiles]);
-
-    // Simulate upload progress
-    newFiles.forEach((f, idx) => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 20 + 10;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
-          setFiles(prev =>
-            prev.map(pf => pf.id === f.id ? { ...pf, progress: 100, status: 'done' } : pf)
-          );
-        } else {
-          setFiles(prev =>
-            prev.map(pf => pf.id === f.id ? { ...pf, progress } : pf)
-          );
-        }
-      }, 300 + idx * 100);
-    });
-  }, [simulateUpload]);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
     setIsDragging(false);
-    handleFiles(e.dataTransfer.files);
-  }, [handleFiles]);
-
-  const removeFile = (id: string) => {
-    const file = files.find(f => f.id === id);
-    if (file?.type === 'thumbnail') setThumbnailPreview(null);
-    setFiles(prev => prev.filter(f => f.id !== id));
-  };
-
-  const handleSubmit = async () => {
-    if (!title.trim() || !category.trim()) {
-      alert('অনুগ্রহ করে Asset Title এবং Category পূরণ করুন।');
-      return;
-    }
-
-    const parsedPrice = Number(price);
-    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
-      alert('Price অবশ্যই শূন্য বা তার বেশি হতে হবে।');
-      return;
-    }
-
-    if (files.length === 0) {
-      alert('কমপক্ষে একটি ফাইল আপলোড করুন।');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      const uploaded = await Promise.all(
-        files.map(async (file) => {
-          if (!file.file) {
-            return null;
-          }
-
-          const formData = new FormData();
-          formData.append('file', file.file);
-
-          const response = await fetch('/api/files/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          const payload = await response.json();
-          if (!response.ok) {
-            throw new Error(payload?.error || 'File upload failed');
-          }
-
-          return {
-            ...file,
-            key: payload.key,
-            url: payload.url,
-            downloadUrl: payload.downloadUrl,
-          };
-        }),
-      );
-
-      const thumbnailAsset = uploaded.find((item) => item?.type === 'thumbnail');
-      const sourceAsset = uploaded.find((item) => item && item.type !== 'thumbnail') ?? uploaded[0];
-      const productPayload = {
-        title: title.trim(),
-        description: description.trim(),
-        category: category.trim(),
-        price: parsedPrice,
-        tags,
-        imageUrl: thumbnailAsset?.url || thumbnailPreview || '/images/product-saas-checkout.jpg',
-        fileUrl: sourceAsset?.key || null,
-      };
-
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productPayload),
-      });
-
-      const data = await response.json().catch(() => ({ error: 'Unknown error' }));
-      if (!response.ok) {
-        throw new Error(data?.error || 'Failed to save asset metadata');
-      }
-
-      alert('ডিজাইন সফলভাবে ডাটাবেজে যুক্ত হয়েছে! 🎉');
-      window.location.href = '/dashboard/assets';
-    } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : 'সার্ভারে সমস্যা হয়েছে।');
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 py-6 md:px-8">
-      <header className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <p className="text-label-sm text-on-surface-variant uppercase tracking-[0.2em]">Product Management</p>
-          <h1 className="mt-2 text-headline-lg text-on-surface font-bold">Upload New Asset</h1>
+    <div className="flex h-screen bg-[#f0f2f5] text-[#1c1e21] antialiased selection:bg-[#1877f2] selection:text-white overflow-hidden">
+      <nav className="h-screen w-64 fixed left-0 top-0 bg-[#ffffff] shadow-sm flex flex-col py-6 px-4 z-50">
+        <div className="mb-10 px-2 flex items-center space-x-3">
+          <span className="material-symbols-outlined text-[#1877f2] text-3xl font-bold">palette</span>
+          <div className="font-headline-md text-headline-md font-bold text-[#1877f2]">Rongtuli</div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-3 bg-surface-container-lowest border border-white/50 rounded-full px-4 py-2 shadow-sm">
-            <span className="material-symbols-outlined text-on-surface-variant">search</span>
-            <input
-              aria-label="Search"
-              className="w-56 border-0 bg-transparent text-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none"
-              placeholder="Search anything..."
+        <div className="flex items-center space-x-3 px-2 mb-8 p-3 rounded-xl bg-[#f7f8fa] shadow-sm">
+          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-[#e4e6eb]">
+            <img
+              alt="Rongtuli Admin Profile"
+              className="w-full h-full object-cover"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPh5ZZPGjMdGdgCXhZKe7Nn6JagOCBshH70HHWJ06CTa1mLSh_tdSHQxaS-5ReOmP5JNPoMNy8GpIVAPlBFcU5UsmrGK6Oa1qOAnJbrruoN0VWCpZCBHjD5RS1OycKinufXBD-vxealFJwu-GYiqIrVoLXdA07QGnBmct3BhsNdyHSk9-vHOqHzchEeoUsCEwokELWqEIn7quZgmMOYTRLSoX2rcpmy5QMdIbHBioXdxrA3Qeu2qFV"
             />
           </div>
-          <button className="w-10 h-10 rounded-full bg-surface-container-lowest border border-white/50 text-on-surface-variant flex items-center justify-center shadow-sm">
-            <span className="material-symbols-outlined">notifications</span>
-          </button>
-          <Link href="/dashboard" className="text-label-md text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined">close</span>
-            Cancel
-          </Link>
-        </div>
-      </header>
-
-      <div className="bg-surface-container-lowest rounded-[28px] border border-white/50 shadow-[0_4px_24px_rgba(0,0,0,0.03)] overflow-hidden">
-        <div className="border-b border-surface-variant/20 bg-surface-container-low px-6 py-5">
-          <div className="flex items-center max-w-lg">
-            {STEPS.map((step, idx) => (
-              <React.Fragment key={step}>
-                <div className="flex flex-1 items-center gap-2">
-                  <button
-                    onClick={() => idx < currentStep && setCurrentStep(idx)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-label-sm font-label-sm transition-all ${
-                      idx < currentStep
-                        ? 'bg-secondary text-on-secondary cursor-pointer'
-                        : idx === currentStep
-                          ? 'bg-primary text-on-primary shadow-sm'
-                          : 'bg-surface-container-high text-on-surface-variant border border-outline-variant'
-                    }`}
-                  >
-                    {idx < currentStep ? <span className="material-symbols-outlined text-[16px]">check</span> : idx + 1}
-                  </button>
-                  <span className={`text-label-sm font-label-sm ${idx === currentStep ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>
-                    {step}
-                  </span>
-                </div>
-                {idx < STEPS.length - 1 && <div className={`h-[2px] flex-1 mx-2 ${idx < currentStep ? 'bg-secondary' : 'bg-outline-variant'}`} />}
-              </React.Fragment>
-            ))}
+          <div className="flex flex-col truncate">
+            <span className="font-label-md text-label-md text-[#1c1e21] truncate">Admin Profile</span>
+            <span className="font-body-sm text-body-sm text-[#606770] truncate">Design Admin</span>
           </div>
         </div>
 
-        <div className="px-6 py-8 md:px-8">
-          {currentStep === 0 && (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              <div className="xl:col-span-8 flex flex-col gap-6">
-                <div
-                  className={`w-full border-2 border-dashed rounded-[24px] p-8 md:p-12 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all ${
-                    isDragging ? 'border-primary bg-primary-container/10' : 'border-outline-variant bg-surface-container-low hover:border-primary hover:bg-surface-bright'
-                  }`}
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div className={`w-20 h-20 rounded-full flex items-center justify-center ${isDragging ? 'bg-primary-container/20 scale-110' : 'bg-primary-container/10'}`}>
-                    <span className="material-symbols-outlined text-[40px] text-primary">cloud_upload</span>
-                  </div>
-                  <h3 className="text-headline-md text-on-surface text-center">Drag & Drop your files here</h3>
-                  <p className="max-w-md text-body-sm text-on-surface-variant text-center">
-                    Upload your main design source file, preview image, and any supporting assets.
-                  </p>
-                  <button type="button" className="pointer-events-none bg-primary text-on-primary px-6 py-3 rounded-lg text-label-md font-label-md shadow-sm">
-                    Browse Files
-                  </button>
-                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
-                </div>
-
-                {files.length > 0 && (
-                  <div className="bg-surface-container-low border border-outline-variant rounded-[22px] p-5 flex flex-col gap-4">
-                    <h4 className="text-label-md text-on-surface font-bold">Uploaded Assets</h4>
-                    {files.map((file) => (
-                      <div key={file.id} className="relative flex items-center justify-between gap-4 rounded-2xl border border-outline-variant bg-surface-container-lowest p-4 overflow-hidden">
-                        {file.status === 'uploading' && (
-                          <div className="absolute left-0 bottom-0 h-1 bg-primary transition-all duration-300" style={{ width: `${file.progress}%` }} />
-                        )}
-                        <div className="flex items-center gap-4 min-w-0">
-                          <div className="relative w-12 h-12 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center overflow-hidden shrink-0">
-                            {file.previewUrl ? (<Image src={file.previewUrl} alt={file.name} fill className="object-cover" />) : (<span className="material-symbols-outlined">folder_zip</span>)}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-label-md text-on-surface">{file.name}</p>
-                            <p className="text-body-sm text-on-surface-variant capitalize">
-                              {file.type} File · {file.size}
-                              {file.status === 'uploading' && ` · Uploading... ${Math.round(file.progress)}%`}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          {file.status === 'done' && (
-                            <div className="flex items-center gap-1 text-secondary">
-                              <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                              <span className="text-label-sm">Done</span>
-                            </div>
-                          )}
-                          <button onClick={() => removeFile(file.id)} className="p-1 text-on-surface-variant hover:text-error">
-                            <span className="material-symbols-outlined">{file.status === 'done' ? 'delete' : 'close'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <aside className="xl:col-span-4">
-                <div className="bg-surface-container-low border border-outline-variant rounded-[24px] p-5 xl:sticky xl:top-6 flex flex-col gap-6">
-                  <h4 className="text-label-md text-on-surface font-bold border-b border-outline-variant pb-4">Thumbnail Preview</h4>
-                  <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-outline-variant border-dashed bg-surface-container-highest">
-                    {thumbnailPreview ? (
-                      <Image src={thumbnailPreview} alt="Thumbnail Preview" fill className="object-cover" />
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center gap-2 text-on-surface-variant">
-                        <span className="material-symbols-outlined text-[32px]">add_photo_alternate</span>
-                        <p className="text-label-sm text-center">Select primary preview image</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-label-sm text-on-surface-variant">Asset Category</label>
-                    <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 text-body-md text-on-surface outline-none focus:border-secondary focus:ring-1 focus:ring-secondary">
-                      <option value="">Select Category...</option>
-                      <option>UI Kits</option>
-                      <option>Vectors</option>
-                      <option>Fonts</option>
-                      <option>3D Assets</option>
-                      <option>Templates</option>
-                      <option>Illustrations</option>
-                    </select>
-                  </div>
-
-                  <div className="flex gap-3 rounded-2xl bg-surface-container-lowest p-4 border border-outline-variant">
-                    <span className="material-symbols-outlined text-secondary">info</span>
-                    <div>
-                      <p className="text-label-sm font-bold text-on-surface mb-1">Upload Guidelines</p>
-                      <p className="text-body-sm text-on-surface-variant leading-relaxed">Keep your thumbnail close to 1920×1080 and include all source files in the ZIP package.</p>
-                    </div>
-                  </div>
-                </div>
-              </aside>
-            </div>
-          )}
-
-          {currentStep === 1 && (
-            <div className="max-w-2xl mx-auto flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-label-md text-on-surface font-bold">Asset Title</label>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Modern SaaS UI Kit" className="w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 text-body-md text-on-surface outline-none focus:border-secondary focus:ring-1 focus:ring-secondary" />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-label-md text-on-surface font-bold">Description</label>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} placeholder="Describe your asset — what's included, features, use-cases..." className="w-full resize-none rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 text-body-md text-on-surface outline-none focus:border-secondary focus:ring-1 focus:ring-secondary" />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-label-md text-on-surface font-bold">Price (USD)</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold">$</span>
-                    <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} min="0" step="0.01" className="w-full rounded-xl border border-outline-variant bg-surface-bright pl-8 pr-4 py-3 text-body-md text-on-surface outline-none focus:border-secondary focus:ring-1 focus:ring-secondary" />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-label-md text-on-surface font-bold">Category</label>
-                  <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 text-body-md text-on-surface outline-none focus:border-secondary focus:ring-1 focus:ring-secondary">
-                    <option value="">Select...</option>
-                    <option>UI Kits</option>
-                    <option>Vectors</option>
-                    <option>Fonts</option>
-                    <option>3D Assets</option>
-                    <option>Templates</option>
-                    <option>Illustrations</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-label-md text-on-surface font-bold">Tags <span className="font-normal text-on-surface-variant">(comma-separated)</span></label>
-                <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. ui kit, dashboard, saas, minimal" className="w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 text-body-md text-on-surface outline-none focus:border-secondary focus:ring-1 focus:ring-secondary" />
-                {tags && (
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    {tags.split(',').map(tag => tag.trim()).filter(Boolean).map((tag, i) => (
-                      <span key={i} className="rounded-full bg-secondary-container text-on-secondary-container px-3 py-1 text-label-sm">{tag}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {currentStep === 2 && (
-            <div className="max-w-2xl mx-auto">
-              <div className="rounded-[24px] border border-outline-variant bg-surface-container-lowest p-8">
-                <h2 className="mb-6 text-headline-md text-on-surface font-bold">Review Your Submission</h2>
-                <div className="flex flex-col gap-5">
-                  {thumbnailPreview && (
-                    <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-outline-variant">
-                      <Image src={thumbnailPreview} alt="Preview" fill className="object-cover" />
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="mb-1 text-label-sm text-on-surface-variant">Title</p>
-                      <p className="text-body-md text-on-surface font-semibold">{title || '—'}</p>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-label-sm text-on-surface-variant">Category</p>
-                      <p className="text-body-md text-on-surface font-semibold">{category || '—'}</p>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-label-sm text-on-surface-variant">Price</p>
-                      <p className="text-body-md text-on-surface font-semibold">{price ? `$${price}` : '—'}</p>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-label-sm text-on-surface-variant">Files</p>
-                      <p className="text-body-md text-on-surface font-semibold">{files.length} file(s)</p>
-                    </div>
-                  </div>
-
-                  {description && (
-                    <div>
-                      <p className="mb-1 text-label-sm text-on-surface-variant">Description</p>
-                      <p className="text-body-sm text-on-surface leading-relaxed">{description}</p>
-                    </div>
-                  )}
-
-                  {tags && (
-                    <div>
-                      <p className="mb-2 text-label-sm text-on-surface-variant">Tags</p>
-                      <div className="flex flex-wrap gap-2">
-                        {tags.split(',').map(t => t.trim()).filter(Boolean).map((tag, i) => (
-                          <span key={i} className="rounded-full bg-secondary-container text-on-secondary-container px-3 py-1 text-label-sm">{tag}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3 rounded-2xl border border-secondary/20 bg-secondary-container/30 p-4">
-                    <span className="material-symbols-outlined text-secondary">verified</span>
-                    <div>
-                      <p className="text-label-md text-on-surface font-bold">Ready to Submit</p>
-                      <p className="text-body-sm text-on-surface-variant">Your asset will be reviewed within 2-3 business days.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="flex-1 flex flex-col space-y-2 overflow-y-auto">
+          <Link href="/dashboard" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-[#606770] hover:text-[#1877f2] transition-colors hover:bg-[#f0f2f5] group">
+            <span className="material-symbols-outlined transition-transform group-hover:scale-110 duration-200">dashboard</span>
+            <span className="font-label-md text-label-md">Dashboard</span>
+          </Link>
+          <Link href="/dashboard/assets" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-[#1877f2] font-bold border-r-4 border-[#1877f2] bg-[#e7f3ff] group scale-[0.98] transition-transform duration-200">
+            <span className="material-symbols-outlined transition-transform group-hover:scale-110 duration-200" style={{ fontVariationSettings: '"FILL" 1' }}>inventory_2</span>
+            <span className="font-label-md text-label-md text-[#1877f2]">Products</span>
+          </Link>
+          <Link href="/dashboard/earnings" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-[#606770] hover:text-[#1877f2] transition-colors hover:bg-[#f0f2f5] group">
+            <span className="material-symbols-outlined transition-transform group-hover:scale-110 duration-200">payments</span>
+            <span className="font-label-md text-label-md">Sales</span>
+          </Link>
+          <Link href="/dashboard/settings" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-[#606770] hover:text-[#1877f2] transition-colors hover:bg-[#f0f2f5] group">
+            <span className="material-symbols-outlined transition-transform group-hover:scale-110 duration-200">settings</span>
+            <span className="font-label-md text-label-md">Settings</span>
+          </Link>
         </div>
 
-        <div className="border-t border-outline-variant bg-surface px-6 py-4 md:px-8 flex items-center justify-between gap-3">
-          <button
-            onClick={() => currentStep > 0 && setCurrentStep(p => p - 1)}
-            className="px-6 py-2 rounded-lg border-2 border-secondary text-secondary text-label-md font-label-md hover:bg-secondary-fixed transition-colors"
-          >
-            {currentStep === 0 ? 'Save Draft' : 'Back'}
+        <div className="mt-auto pt-6">
+          <button className="w-full flex items-center justify-center space-x-2 bg-[#42b72a] text-white py-3 px-4 rounded-lg font-label-md text-label-md hover:bg-[#36a420] transition-colors shadow-sm hover:shadow-md">
+            <span className="material-symbols-outlined">upload</span>
+            <span>Upload Asset</span>
           </button>
-
-          {currentStep < STEPS.length - 1 ? (
-            <button
-              onClick={() => setCurrentStep(p => p + 1)}
-              className="flex items-center gap-2 rounded-lg bg-primary px-8 py-3 text-label-md font-label-md text-on-primary shadow-sm hover:opacity-90 transition-opacity"
-            >
-              Continue to {STEPS[currentStep + 1]}
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => void handleSubmit()}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 rounded-lg bg-secondary px-8 py-3 text-label-md font-label-md text-on-secondary shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <span className="material-symbols-outlined text-[18px]">send</span>
-              {isSubmitting ? 'Uploading...' : 'Submit for Review'}
-            </button>
-          )}
         </div>
+      </nav>
+
+      <div className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
+        <header className="top-0 sticky z-40 bg-[#ffffff] shadow-sm flex justify-between items-center px-[64px] h-16 w-full shrink-0">
+          <div className="flex items-center space-x-8">
+            <a className="font-label-sm text-label-sm text-[#606770] hover:text-[#1877f2] transition-colors focus:ring-2 ring-[#1877f2]/20 outline-none rounded-sm px-1 py-1" href="#">Overview</a>
+            <a className="font-label-sm text-label-sm text-[#606770] hover:text-[#1877f2] transition-colors focus:ring-2 ring-[#1877f2]/20 outline-none rounded-sm px-1 py-1" href="#">Analytics</a>
+            <a className="font-label-sm text-label-sm text-[#606770] hover:text-[#1877f2] transition-colors focus:ring-2 ring-[#1877f2]/20 outline-none rounded-sm px-1 py-1" href="#">Reports</a>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <button className="p-2 text-[#606770] hover:text-[#1877f2] transition-colors rounded-full hover:bg-[#f7f8fa] focus:ring-2 ring-[#1877f2]/20 outline-none">
+              <span className="material-symbols-outlined text-[20px]">notifications</span>
+            </button>
+            <button className="p-2 text-[#606770] hover:text-[#1877f2] transition-colors rounded-full hover:bg-[#f7f8fa] focus:ring-2 ring-[#1877f2]/20 outline-none">
+              <span className="material-symbols-outlined text-[20px]">help_outline</span>
+            </button>
+            <div className="w-8 h-8 rounded-full overflow-hidden border border-[#e4e6eb] ml-2 cursor-pointer">
+              <img
+                alt="Admin User Avatar"
+                className="w-full h-full object-cover"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKHJEDkdBUNJWGWCuqc-XX7XPu28nCgRdkG4GFaQakCoozAOBhqdWRcyeImgswC_FQvFi0TGoNBILsaZE_SsLJ5KlcMVoxTaVZBzkUqwRqY-CSL598533TUywQNZr1xan4lMHF2u5IeIXi7tSUt0Ou_sLCOQGBhYP2dXHGjOPByPcJg3UlNjcw_5SvpUPQPdOt8VgYR9H9fPUrPcezaM2vjp_XKCopIQ3iMBjnaXUUScl4BRsUpIrH"
+              />
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto bg-[#f0f2f5] p-8 lg:p-[64px] scroll-smooth">
+          <div className="max-w-[1280px] mx-auto">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-[#e4e6eb]/30">
+              <div>
+                <div className="flex items-center space-x-2 text-[#606770] mb-2">
+                  <span className="font-label-sm text-label-sm uppercase tracking-wider">Products</span>
+                  <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-[#1877f2]">Upload New Design</span>
+                </div>
+                <h1 className="font-headline-lg text-headline-lg text-[#1c1e21]">Upload New Design</h1>
+                <p className="font-body-md text-body-md text-[#606770] mt-2 max-w-2xl">Add a new digital asset to the marketplace. Ensure all source files and previews meet the platform quality guidelines.</p>
+              </div>
+
+              <div className="mt-4 md:mt-0 flex space-x-3">
+                <button className="px-5 py-2.5 rounded-lg border-2 border-[#ccd0d5] text-[#1c1e21] font-label-md text-label-md hover:border-[#1877f2] hover:text-[#1877f2] hover:bg-[#1877f2]/5 transition-all focus:ring-2 ring-[#1877f2]/20 outline-none shadow-sm">
+                  Save to Draft
+                </button>
+                <button className="px-5 py-2.5 rounded-lg bg-[#1877f2] text-white font-label-md text-label-md hover:bg-[#1469d4] transition-all shadow-sm hover:shadow-md focus:ring-2 ring-[#1877f2]/20 outline-none flex items-center space-x-2">
+                  <span className="material-symbols-outlined text-[18px]">cloud_upload</span>
+                  <span>Publish Asset</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
+              <div className="lg:col-span-8 space-y-[24px]">
+                <div className="bg-[#ffffff] rounded-xl border-none p-6 shadow-sm hover:shadow-md transition-shadow">
+                  <h2 className="font-headline-md text-headline-md text-[#1c1e21] mb-1 flex items-center space-x-2">
+                    <span className="material-symbols-outlined text-[#1877f2]">perm_media</span>
+                    <span>Media Assets</span>
+                  </h2>
+                  <p className="font-body-sm text-body-sm text-[#606770] mb-6">Upload high-quality previews and the final source files.</p>
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2">Product Banner (16:9 Ratio)</label>
+                      <div
+                        className={`border-2 border-dashed border-[#ccd0d5] rounded-xl bg-[#f0f2f5] hover:bg-[#f0f2f5] transition-colors p-8 flex flex-col items-center justify-center text-center cursor-pointer group relative overflow-hidden ${isDragging ? 'border-[#1877f2] bg-[#1877f2]/5' : ''}`}
+                        id="banner-dropzone"
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setIsDragging(true);
+                        }}
+                        onDragLeave={() => setIsDragging(false)}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <div className="w-16 h-16 rounded-full bg-[#e7f3ff] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                          <span className="material-symbols-outlined text-3xl text-[#1877f2]">image</span>
+                        </div>
+                        <p className="font-label-md text-label-md text-[#1c1e21] mb-1">Drag &amp; drop your preview image here</p>
+                        <p className="font-body-sm text-body-sm text-[#606770] mb-4">Supports JPG, PNG, WEBP up to 5MB</p>
+                        <button className="px-4 py-2 rounded-lg bg-white shadow-sm border border-[#ccd0d5] text-[#1c1e21] font-label-sm text-label-sm hover:border-[#1877f2] hover:text-[#1877f2] transition-colors" type="button">
+                          Browse Files
+                        </button>
+                        <input ref={fileInputRef} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" type="file" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2">Source Files (ZIP)</label>
+                      <div className="border-2 border-dashed border-[#ccd0d5] rounded-xl bg-[#f0f2f5] hover:bg-[#f0f2f5] transition-colors p-6 flex items-center space-x-4 cursor-pointer group relative">
+                        <div className="w-12 h-12 rounded-lg bg-[#e7f3ff] flex items-center justify-center shrink-0 group-hover:bg-[#dfefff] transition-colors">
+                          <span className="material-symbols-outlined text-2xl text-[#1877f2]">folder_zip</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-label-md text-label-md text-[#1c1e21]">Upload project source files</p>
+                          <p className="font-body-sm text-body-sm text-[#606770]">Max size: 500MB. Include AI, PSD, FIG, etc.</p>
+                        </div>
+                        <button className="px-4 py-2 rounded-lg bg-white shadow-sm border border-[#ccd0d5] text-[#1c1e21] font-label-sm text-label-sm hover:border-[#1877f2] hover:text-[#1877f2] transition-colors shrink-0" type="button">
+                          Browse
+                        </button>
+                        <input accept=".zip,.rar" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" type="file" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#ffffff] rounded-xl border-none p-6 shadow-sm hover:shadow-md transition-shadow">
+                  <h2 className="font-headline-md text-headline-md text-[#1c1e21] mb-6 flex items-center space-x-2">
+                    <span className="material-symbols-outlined text-[#1877f2]">edit_note</span>
+                    <span>Product Details</span>
+                  </h2>
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2" htmlFor="product-title">Product Title</label>
+                      <input
+                        className="w-full bg-[#f0f2f5] border border-[#ccd0d5] rounded-lg px-4 py-3 font-body-md text-body-md text-[#1c1e21] focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] outline-none transition-shadow placeholder:text-[#606770]/50"
+                        id="product-title"
+                        placeholder="e.g., Minimalist E-commerce UI Kit"
+                        type="text"
+                        value={title}
+                        onChange={(event) => setTitle(event.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2 flex justify-between items-end">
+                        <span>Description</span>
+                        <span className="font-body-sm text-[11px] text-[#606770] font-normal">Markdown supported</span>
+                      </label>
+
+                      <div className="border border-[#ccd0d5] rounded-t-lg bg-[#f7f8fa] p-2 flex space-x-1 border-b-0">
+                        <button className="p-1.5 text-[#606770] hover:text-[#1877f2] hover:bg-[#1877f2]/10 rounded" type="button"><span className="material-symbols-outlined text-[18px]">format_bold</span></button>
+                        <button className="p-1.5 text-[#606770] hover:text-[#1877f2] hover:bg-[#1877f2]/10 rounded" type="button"><span className="material-symbols-outlined text-[18px]">format_italic</span></button>
+                        <div className="w-px h-5 bg-[#ccd0d5]/50 mx-1 self-center"></div>
+                        <button className="p-1.5 text-[#606770] hover:text-[#1877f2] hover:bg-[#1877f2]/10 rounded" type="button"><span className="material-symbols-outlined text-[18px]">format_list_bulleted</span></button>
+                        <button className="p-1.5 text-[#606770] hover:text-[#1877f2] hover:bg-[#1877f2]/10 rounded" type="button"><span className="material-symbols-outlined text-[18px]">link</span></button>
+                      </div>
+
+                      <textarea
+                        className="w-full bg-[#f0f2f5] border border-[#ccd0d5] rounded-b-lg px-4 py-3 font-body-md text-body-md text-[#1c1e21] focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] outline-none transition-shadow resize-y placeholder:text-[#606770]/50"
+                        id="product-desc"
+                        placeholder="Describe the features, contents, and technical details of your asset..."
+                        rows={6}
+                        value={description}
+                        onChange={(event) => setDescription(event.target.value)}
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#ffffff] rounded-xl border-none p-6 shadow-sm hover:shadow-md transition-shadow">
+                  <h2 className="font-headline-md text-headline-md text-[#1c1e21] mb-6 flex items-center space-x-2">
+                    <span className="material-symbols-outlined text-[#1877f2]">print</span>
+                    <span>Product Type &amp; Specifications</span>
+                  </h2>
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-3">Product Type</label>
+                      <div className="flex space-x-4">
+                        <label className={`flex-1 flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-colors group ${selectedProductType === 'digital' ? 'border-[#1877f2] bg-[#1877f2]/5' : 'border-[#ccd0d5] hover:border-[#1877f2]'}`}>
+                          <input className="hidden" name="prod-type" type="radio" value="digital" checked={selectedProductType === 'digital'} onChange={() => setSelectedProductType('digital')} />
+                          <span className={`font-label-md text-label-md ${selectedProductType === 'digital' ? 'text-[#1877f2]' : 'text-[#606770] group-hover:text-[#1877f2]'}`}>Digital Asset</span>
+                        </label>
+                        <label className={`flex-1 flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-colors group ${selectedProductType === 'print' ? 'border-[#1877f2] bg-[#1877f2]/5' : 'border-[#ccd0d5] hover:border-[#1877f2]'}`}>
+                          <input className="hidden" name="prod-type" type="radio" value="print" checked={selectedProductType === 'print'} onChange={() => setSelectedProductType('print')} />
+                          <span className={`font-label-md text-label-md ${selectedProductType === 'print' ? 'text-[#1877f2]' : 'text-[#606770] group-hover:text-[#1877f2]'}`}>Physical Print</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2">Size</label>
+                        <select className="w-full bg-[#f0f2f5] border border-[#ccd0d5] rounded-lg px-4 py-3 font-body-md text-body-md text-[#1c1e21] focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] outline-none">
+                          <option>A4 Standard</option>
+                          <option>A3 Poster</option>
+                          <option>Business Card</option>
+                          <option>Custom Size</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2">Paper Material</label>
+                        <select className="w-full bg-[#f0f2f5] border border-[#ccd0d5] rounded-lg px-4 py-3 font-body-md text-body-md text-[#1c1e21] focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] outline-none">
+                          <option>130 GSM Glossy</option>
+                          <option>300 GSM Matte</option>
+                          <option>Premium Card Stock</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-3">Finish Options</label>
+                      <div className="flex flex-wrap gap-2">
+                        <button className="px-4 py-2 rounded-full border border-[#1877f2] bg-[#e7f3ff] text-[#1877f2] font-label-sm text-[12px]" type="button">Matte</button>
+                        <button className="px-4 py-2 rounded-full border border-[#ccd0d5] text-[#606770] font-label-sm text-[12px] hover:border-[#1877f2] hover:text-[#1877f2]" type="button">Glossy</button>
+                        <button className="px-4 py-2 rounded-full border border-[#ccd0d5] text-[#606770] font-label-sm text-[12px] hover:border-[#1877f2] hover:text-[#1877f2]" type="button">Textured</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-4 space-y-[24px]">
+                <div className="bg-[#ffffff] rounded-xl border-none p-6 shadow-sm">
+                  <h2 className="font-headline-md text-headline-md text-[#1c1e21] mb-4 flex items-center space-x-2">
+                    <span className="material-symbols-outlined text-[#1877f2]">payments</span>
+                    <span>Pricing</span>
+                  </h2>
+                  <div>
+                    <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2" htmlFor="product-price">Standard License Price (USD)</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <span className="text-[#606770] font-bold">$</span>
+                      </div>
+                      <input
+                        className="w-full bg-[#f0f2f5] border border-[#ccd0d5] rounded-lg pl-8 pr-4 py-3 font-body-md text-body-md text-[#1c1e21] focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] outline-none transition-shadow"
+                        id="product-price"
+                        placeholder="0.00"
+                        step="0.01"
+                        type="number"
+                        value={price}
+                        onChange={(event) => setPrice(event.target.value)}
+                      />
+                    </div>
+                    <div className="mt-3 flex items-center space-x-2">
+                      <input className="w-4 h-4 rounded border-[#ccd0d5] text-[#1877f2] focus:ring-[#1877f2] bg-[#f0f2f5]" id="free-item" type="checkbox" />
+                      <label className="font-body-sm text-body-sm text-[#606770] cursor-pointer" htmlFor="free-item">Offer as a free download</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#ffffff] rounded-xl border-none p-6 shadow-sm">
+                  <h2 className="font-headline-md text-headline-md text-[#1c1e21] mb-4 flex items-center space-x-2">
+                    <span className="material-symbols-outlined text-[#1877f2]">category</span>
+                    <span>Categorization</span>
+                  </h2>
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2" htmlFor="category-select">Category</label>
+                      <div className="relative">
+                        <select
+                          className="w-full appearance-none bg-[#f0f2f5] border border-[#ccd0d5] rounded-lg px-4 py-3 font-body-md text-body-md text-[#1c1e21] focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] outline-none transition-shadow pr-10"
+                          id="category-select"
+                          value={category}
+                          onChange={(event) => setCategory(event.target.value)}
+                        >
+                          <option disabled value="">Select a category</option>
+                          <option value="ui-kits">UI Kits &amp; Templates</option>
+                          <option value="illustrations">Illustrations</option>
+                          <option value="fonts">Fonts &amp; Typography</option>
+                          <option value="3d">3D Assets</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-[#606770]">
+                          <span className="material-symbols-outlined">expand_more</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2">Tags</label>
+                      <div className="bg-[#f0f2f5] border border-[#ccd0d5] rounded-lg p-2 focus-within:border-[#1877f2] focus-within:ring-1 focus-within:ring-[#1877f2] transition-shadow flex flex-wrap gap-2 items-center min-h-[52px]">
+                        <span className="inline-flex items-center space-x-1 bg-[#e7f3ff] text-[#1877f2] px-2 py-1 rounded-md font-label-sm text-[11px]">
+                          <span>minimal</span>
+                          <button className="hover:text-[#1469d4] transition-colors" type="button"><span className="material-symbols-outlined text-[14px]">close</span></button>
+                        </span>
+                        <span className="inline-flex items-center space-x-1 bg-[#e7f3ff] text-[#1877f2] px-2 py-1 rounded-md font-label-sm text-[11px]">
+                          <span>ecommerce</span>
+                          <button className="hover:text-[#1469d4] transition-colors" type="button"><span className="material-symbols-outlined text-[14px]">close</span></button>
+                        </span>
+                        <input className="flex-1 min-w-[100px] bg-transparent border-none focus:ring-0 p-1 font-body-sm text-body-sm text-[#1c1e21] placeholder:text-[#606770]/50" placeholder="Add tag and press Enter..." type="text" />
+                      </div>
+                      <p className="font-body-sm text-[11px] text-[#606770] mt-1">Add up to 10 tags to improve searchability.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#ffffff] rounded-xl border-none p-6 shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="font-headline-md text-headline-md text-[#1c1e21] flex items-center space-x-2">
+                      <span className="material-symbols-outlined text-[#1877f2]">verified</span>
+                      <span>Design Approval</span>
+                    </h2>
+                    <span className="px-2 py-1 rounded bg-[#e7f3ff] text-[#1877f2] font-label-sm text-[10px] uppercase tracking-wider">Pending Approval</span>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2">Client Feedback/Notes</label>
+                      <textarea className="w-full bg-[#f0f2f5] border border-[#ccd0d5] rounded-lg px-3 py-2 font-body-sm text-body-sm text-[#1c1e21] focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] outline-none resize-none" placeholder="Add notes for the client..." rows={3}></textarea>
+                    </div>
+                    <button className="w-full py-3 rounded-lg bg-[#1877f2] text-white font-label-md text-label-md hover:bg-[#1469d4] transition-all shadow-sm flex items-center justify-center space-x-2">
+                      <span className="material-symbols-outlined text-[18px]">send</span>
+                      <span>Send for Approval</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-[#e7f3ff] border border-[#dfefff] rounded-xl p-4 flex space-x-3">
+                  <span className="material-symbols-outlined text-[#1877f2] mt-0.5 text-[20px]">info</span>
+                  <div>
+                    <h4 className="font-label-md text-label-md text-[#1c1e21] mb-1">Update Mode Available</h4>
+                    <p className="font-body-sm text-[12px] text-[#606770]">Editing an existing asset? Form details will auto-fill to preserve your current data.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-12"></div>
+          </div>
+        </main>
       </div>
     </div>
   );
