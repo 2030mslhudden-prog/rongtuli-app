@@ -136,13 +136,29 @@ export default function UploadPage() {
                         onDragLeave={() => setIsDragging(false)}
                         onDrop={handleDrop}
                         onClick={() => fileInputRef.current?.click()}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            fileInputRef.current?.click();
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Upload product preview image"
                       >
                         <div className="w-16 h-16 rounded-full bg-[#e7f3ff] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                           <span className="material-symbols-outlined text-3xl text-[#1877f2]">image</span>
                         </div>
                         <p className="font-label-md text-label-md text-[#1c1e21] mb-1">Drag &amp; drop your preview image here</p>
                         <p className="font-body-sm text-body-sm text-[#606770] mb-4">Supports JPG, PNG, WEBP up to 5MB</p>
-                        <button className="px-4 py-2 rounded-lg bg-white shadow-sm border border-[#ccd0d5] text-[#1c1e21] font-label-sm text-label-sm hover:border-[#1877f2] hover:text-[#1877f2] transition-colors" type="button">
+                        <button
+                          className="px-4 py-2 rounded-lg bg-white shadow-sm border border-[#ccd0d5] text-[#1c1e21] font-label-sm text-label-sm hover:border-[#1877f2] hover:text-[#1877f2] transition-colors"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            fileInputRef.current?.click();
+                          }}
+                        >
                           Browse Files
                         </button>
                         <input ref={fileInputRef} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" type="file" />
@@ -151,7 +167,19 @@ export default function UploadPage() {
 
                     <div>
                       <label className="block font-label-sm text-label-sm text-[#1c1e21] mb-2">Source Files (ZIP)</label>
-                      <div className="border-2 border-dashed border-[#ccd0d5] rounded-xl bg-[#f0f2f5] hover:bg-[#f0f2f5] transition-colors p-6 flex items-center space-x-4 cursor-pointer group relative">
+                      <div
+                        className="border-2 border-dashed border-[#ccd0d5] rounded-xl bg-[#f0f2f5] hover:bg-[#f0f2f5] transition-colors p-6 flex items-center space-x-4 cursor-pointer group relative"
+                        onClick={() => fileInputRef.current?.click()}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            fileInputRef.current?.click();
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Upload source files"
+                      >
                         <div className="w-12 h-12 rounded-lg bg-[#e7f3ff] flex items-center justify-center shrink-0 group-hover:bg-[#dfefff] transition-colors">
                           <span className="material-symbols-outlined text-2xl text-[#1877f2]">folder_zip</span>
                         </div>
@@ -159,7 +187,14 @@ export default function UploadPage() {
                           <p className="font-label-md text-label-md text-[#1c1e21]">Upload project source files</p>
                           <p className="font-body-sm text-body-sm text-[#606770]">Max size: 500MB. Include AI, PSD, FIG, etc.</p>
                         </div>
-                        <button className="px-4 py-2 rounded-lg bg-white shadow-sm border border-[#ccd0d5] text-[#1c1e21] font-label-sm text-label-sm hover:border-[#1877f2] hover:text-[#1877f2] transition-colors shrink-0" type="button">
+                        <button
+                          className="px-4 py-2 rounded-lg bg-white shadow-sm border border-[#ccd0d5] text-[#1c1e21] font-label-sm text-label-sm hover:border-[#1877f2] hover:text-[#1877f2] transition-colors shrink-0"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            fileInputRef.current?.click();
+                          }}
+                        >
                           Browse
                         </button>
                         <input accept=".zip,.rar" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" type="file" />

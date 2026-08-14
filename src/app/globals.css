@@ -126,6 +126,11 @@
     animation-range: entry 20% cover 50%;
 }
 
+@keyframes marqueeScroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
 @utility material-symbols-outlined {
     font-family: 'Material Symbols Outlined', sans-serif;
     font-weight: normal;
@@ -140,9 +145,44 @@
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
 body {
     background-color: var(--color-background);
     color: var(--color-on-background);
     font-family: var(--font-body-md);
     -webkit-font-smoothing: antialiased;
+}
+
+.font-bengali {
+    font-family: var(--font-hind), sans-serif;
+}
+
+.scroll-track-container {
+    overflow: hidden;
+    mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.scroll-track {
+    display: flex;
+    width: max-content;
+    gap: 24px;
+    animation: marqueeScroll 32s linear infinite;
+}
+
+.scroll-track.reverse {
+    animation-direction: reverse;
 }
