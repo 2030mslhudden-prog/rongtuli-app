@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentSession } from '@/lib/auth';
+import { getCurrentSession, getEffectiveUserRole, getProductSubmissionStatus } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
@@ -49,6 +49,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Title, category, and a valid price are required' }, { status: 400 });
     }
 
+    const effectiveRole = getEffectiveUserRole(session.email, session.role);
+    const productStatus = getProductSubmissionStatus(effectiveRole);
+
     const product = await prisma.product.create({
       data: {
         title: title.trim(),
@@ -58,7 +61,7 @@ export async function POST(request: Request) {
         imageUrl: typeof imageUrl === 'string' && imageUrl.trim() ? imageUrl : '/images/product-saas-checkout.jpg',
         fileUrl: typeof fileUrl === 'string' && fileUrl.trim() ? fileUrl : null,
         tags: typeof tags === 'string' ? tags.trim() || null : null,
-        status: 'ACTIVE',
+        status: productStatus,
         authorId: session.userId,
       },
     });

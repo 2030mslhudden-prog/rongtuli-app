@@ -7,6 +7,7 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 const TOKEN_COOKIE_NAME = 'rongtuli_auth_token';
 const SUPER_ADMIN_EMAIL = 'mslhfr1999@gmail.com';
+const ALLOWED_ROLES = new Set(['ADMIN', 'AUTHOR', 'CUSTOMER', 'COMMERCIAL_MEMBER', 'COMMERCIAL', 'MEMBER']);
 
 function getEffectiveRole(email?: string, role?: string): string {
   const normalizedEmail = email?.toLowerCase().trim() ?? '';
@@ -14,8 +15,12 @@ function getEffectiveRole(email?: string, role?: string): string {
     return 'ADMIN';
   }
 
-  const normalizedRole = (role ?? 'AUTHOR').toUpperCase();
-  return ['ADMIN', 'AUTHOR', 'CUSTOMER'].includes(normalizedRole) ? normalizedRole : 'AUTHOR';
+  const normalizedRole = (role ?? 'AUTHOR').toUpperCase().replace(/\s+/g, '_');
+  if (normalizedRole === 'PERSONAL') {
+    return 'AUTHOR';
+  }
+
+  return ALLOWED_ROLES.has(normalizedRole) ? normalizedRole : 'AUTHOR';
 }
 
 export async function middleware(request: NextRequest) {

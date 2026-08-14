@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     const normalizedEmail = email.toLowerCase().trim();
     const passwordHash = await hashPassword(password);
     const isSuperAdmin = normalizedEmail === 'mslhfr1999@gmail.com';
+    const normalizedAccountType = String(accountType || 'PERSONAL').toUpperCase();
+    const computedRole = isSuperAdmin ? 'ADMIN' : normalizedAccountType === 'COMMERCIAL' ? 'COMMERCIAL_MEMBER' : 'AUTHOR';
 
     const newUser = await prisma.user.create({
       data: {
@@ -44,8 +46,8 @@ export async function POST(request: Request) {
         passwordHash,
         phone: phone || null,
         address: address || null,
-        accountType: accountType || 'PERSONAL',
-        role: isSuperAdmin ? 'ADMIN' : 'AUTHOR',
+        accountType: normalizedAccountType,
+        role: computedRole,
       },
     });
 

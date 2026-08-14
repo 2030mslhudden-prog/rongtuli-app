@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildWhatsAppPurchaseUrl, formatAssetPrice, isFreeAsset } from './asset-actions.ts';
+import { buildWhatsAppPurchaseUrl, formatAssetPrice, isFreeAsset } from './asset-actions';
 
 describe('asset actions', () => {
   it('treats zero and negative prices as free assets', () => {

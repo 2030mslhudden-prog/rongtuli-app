@@ -16,14 +16,25 @@ export interface UserSessionPayload {
   role: string;
 }
 
+const ALLOWED_ROLES = new Set(['ADMIN', 'AUTHOR', 'CUSTOMER', 'COMMERCIAL_MEMBER', 'COMMERCIAL', 'MEMBER']);
+
 export function getEffectiveUserRole(email?: string, role?: string): string {
   const normalizedEmail = email?.toLowerCase().trim() ?? '';
   if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
     return 'ADMIN';
   }
 
-  const normalizedRole = (role ?? 'AUTHOR').toUpperCase();
-  return ['ADMIN', 'AUTHOR', 'CUSTOMER'].includes(normalizedRole) ? normalizedRole : 'AUTHOR';
+  const normalizedRole = (role ?? 'AUTHOR').toUpperCase().replace(/\s+/g, '_');
+  if (normalizedRole === 'PERSONAL') {
+    return 'AUTHOR';
+  }
+
+  return ALLOWED_ROLES.has(normalizedRole) ? normalizedRole : 'AUTHOR';
+}
+
+export function getProductSubmissionStatus(role?: string): 'ACTIVE' | 'PENDING_REVIEW' {
+  const effectiveRole = getEffectiveUserRole(undefined, role);
+  return effectiveRole === 'ADMIN' ? 'ACTIVE' : 'PENDING_REVIEW';
 }
 
 export async function hashPassword(password: string): Promise<string> {
