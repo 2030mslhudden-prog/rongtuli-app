@@ -5,15 +5,15 @@ import Link from "next/link";
 import ProductCard from "@/components/marketplace/ProductCard";
 
 export default function Home() {
-  const [featuredProducts, setFeaturedProducts] = useState<Array<{ id: string; title: string; author: string; price: number; rating: number; category: string; imageUrl: string }>>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Array<{ id: string; title: string; author: string; price: number; rating: number; category: string; imageUrl: string; fileUrl: string | null }>>([]);
   const [search, setSearch] = useState('');
 
   const loadProducts = async (query = '') => {
     const response = await fetch(`/api/products${query ? `?search=${encodeURIComponent(query)}` : ''}`);
     if (!response.ok) return;
     const { products } = await response.json();
-    setFeaturedProducts(products.map((product: { id: string; title: string; price: number; category: string; imageUrl: string; author: { name: string } }) => ({
-      id: product.id, title: product.title, author: product.author.name, price: product.price, category: product.category, imageUrl: product.imageUrl, rating: 5,
+    setFeaturedProducts(products.map((product: { id: string; title: string; price: number; category: string; imageUrl: string; fileUrl: string | null; author: { name: string } }) => ({
+      id: product.id, title: product.title, author: product.author.name, price: product.price, category: product.category, imageUrl: product.imageUrl, fileUrl: product.fileUrl, rating: 5,
     })));
   };
 

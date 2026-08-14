@@ -11,6 +11,7 @@ interface UploadedFile {
   status: 'uploading' | 'done' | 'error';
   progress: number;
   previewUrl?: string;
+  file?: File;
 }
 
 const STEPS = ['Upload Files', 'Details', 'Review'];
@@ -23,8 +24,9 @@ export default function UploadPage() {
   const [category, setCategory] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState('0');
   const [tags, setTags] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const simulateUpload = useCallback((file: File): UploadedFile => {
@@ -47,6 +49,7 @@ export default function UploadPage() {
       status: 'uploading',
       progress: 0,
       previewUrl,
+      file,
     };
   }, [files]);
 
@@ -85,6 +88,87 @@ export default function UploadPage() {
     const file = files.find(f => f.id === id);
     if (file?.type === 'thumbnail') setThumbnailPreview(null);
     setFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !category.trim()) {
+      alert('অনুগ্রহ করে Asset Title এবং Category পূরণ করুন।');
+      return;
+    }
+
+    const parsedPrice = Number(price);
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      alert('Price অবশ্যই শূন্য বা তার বেশি হতে হবে।');
+      return;
+    }
+
+    if (files.length === 0) {
+      alert('কমপক্ষে একটি ফাইল আপলোড করুন।');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const uploaded = await Promise.all(
+        files.map(async (file) => {
+          if (!file.file) {
+            return null;
+          }
+
+          const formData = new FormData();
+          formData.append('file', file.file);
+
+          const response = await fetch('/api/files/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload?.error || 'File upload failed');
+          }
+
+          return {
+            ...file,
+            key: payload.key,
+            url: payload.url,
+            downloadUrl: payload.downloadUrl,
+          };
+        }),
+      );
+
+      const thumbnailAsset = uploaded.find((item) => item?.type === 'thumbnail');
+      const sourceAsset = uploaded.find((item) => item && item.type !== 'thumbnail') ?? uploaded[0];
+      const productPayload = {
+        title: title.trim(),
+        description: description.trim(),
+        category: category.trim(),
+        price: parsedPrice,
+        tags,
+        imageUrl: thumbnailAsset?.url || thumbnailPreview || '/images/product-saas-checkout.jpg',
+        fileUrl: sourceAsset?.key || null,
+      };
+
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productPayload),
+      });
+
+      const data = await response.json().catch(() => ({ error: 'Unknown error' }));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to save asset metadata');
+      }
+
+      alert('ডিজাইন সফলভাবে ডাটাবেজে যুক্ত হয়েছে! 🎉');
+      window.location.href = '/dashboard/assets';
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : 'সার্ভারে সমস্যা হয়েছে।');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -288,8 +372,9 @@ export default function UploadPage() {
                     type="number"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="29.00"
-                    min="1"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
                     className="w-full bg-surface-bright border border-outline-variant rounded-lg pl-8 pr-4 py-3 text-body-md text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-colors"
                   />
                 </div>
@@ -408,41 +493,12 @@ export default function UploadPage() {
           </button>
         ) : (
           <button
-            onClick={async () => {
-              if (!title || !category || !price) {
-                alert('অনুগ্রহ করে Title, Category এবং Price ফিল্ডগুলো পূরণ করুন।');
-                return;
-              }
-              try {
-                const res = await fetch('/api/products', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    title,
-                    description,
-                    category,
-                    price: parseFloat(price),
-                    tags,
-                    imageUrl: thumbnailPreview || '/images/product-saas-checkout.jpg',
-                  }),
-                });
-
-                if (!res.ok) {
-                  const data = await res.json();
-                  alert(data.error || 'আপলোড ব্যর্থ হয়েছে');
-                  return;
-                }
-
-                alert('ডিজাইন সফলভাবে ডাটাবেজে যুক্ত হয়েছে! 🎉');
-                window.location.href = '/dashboard/assets';
-              } catch (e) {
-                alert('সার্ভারে সমস্যা হয়েছে।');
-              }
-            }}
-            className="px-8 py-3 bg-secondary text-on-secondary rounded-lg text-label-md font-label-md hover:opacity-90 transition-opacity shadow-sm flex items-center gap-2"
+            onClick={() => void handleSubmit()}
+            disabled={isSubmitting}
+            className="px-8 py-3 bg-secondary text-on-secondary rounded-lg text-label-md font-label-md hover:opacity-90 transition-opacity shadow-sm flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <span className="material-symbols-outlined text-[18px]">send</span>
-            Submit for Review
+            {isSubmitting ? 'Uploading...' : 'Submit for Review'}
           </button>
         )}
       </div>

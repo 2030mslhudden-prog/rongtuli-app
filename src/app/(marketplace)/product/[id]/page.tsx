@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import ProductCard from '@/components/marketplace/ProductCard';
+import { buildWhatsAppPurchaseUrl, formatAssetPrice, isFreeAsset } from '@/lib/asset-actions';
 import { useCartStore } from '@/store/cartStore';
 
-type Product = { id: string; title: string; description: string; category: string; price: number; imageUrl: string; tags: string | null; viewsCount: number; createdAt: string; author: { name: string; avatarUrl: string | null; bio: string | null } };
+type Product = { id: string; title: string; description: string; category: string; price: number; imageUrl: string; fileUrl: string | null; tags: string | null; viewsCount: number; createdAt: string; author: { name: string; avatarUrl: string | null; bio: string | null } };
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +34,13 @@ export default function ProductDetail() {
   if (loading) return <main className="max-w-container-max mx-auto px-margin-mobile py-16 text-on-surface-variant">Loading asset…</main>;
   if (!product) return <main className="max-w-container-max mx-auto px-margin-mobile py-16"><h1 className="text-headline-lg text-on-surface">Asset not found</h1><Link href="/" className="text-secondary mt-4 inline-block">Back to marketplace</Link></main>;
 
+  const isFree = isFreeAsset(product.price);
+  const ctaHref = isFree
+    ? product.fileUrl
+      ? `/api/files/download?key=${encodeURIComponent(product.fileUrl)}`
+      : '#'
+    : buildWhatsAppPurchaseUrl(product.title);
+
   return <main className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-12">
     <nav className="mb-6 text-label-sm text-on-surface-variant"><Link href="/" className="hover:text-primary">Home</Link> <span className="mx-2">/</span> {product.category} <span className="mx-2">/</span> {product.title}</nav>
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
@@ -48,9 +56,19 @@ export default function ProductDetail() {
         <div className="bg-surface-container-lowest border border-surface-variant rounded-xl p-6 shadow-sm">
           <span className="text-label-sm text-secondary uppercase">{product.category}</span>
           <h1 className="text-headline-lg text-on-surface mt-2 mb-4">{product.title}</h1>
-          <p className="text-headline-xl text-primary mb-6">${product.price.toFixed(2)}</p>
-          <button onClick={() => addItem({ id: product.id, title: product.title, author: product.author.name, price: product.price, imageUrl: product.imageUrl, licenseType: 'Personal' })} className="w-full bg-primary text-on-primary py-3 rounded-lg font-label-md hover:opacity-90">Add to cart</button>
-          <p className="text-body-sm text-on-surface-variant mt-4">Personal license · Lifetime access</p>
+          <p className="text-headline-xl text-primary mb-6">{formatAssetPrice(product.price)}</p>
+          <a
+            href={ctaHref}
+            target={isFree ? undefined : '_blank'}
+            rel={isFree ? undefined : 'noreferrer'}
+            className="block w-full bg-primary text-on-primary py-3 rounded-lg font-label-md text-center hover:opacity-90"
+          >
+            {isFree ? 'Download' : 'Buy via WhatsApp'}
+          </a>
+          {!isFree && (
+            <button onClick={() => addItem({ id: product.id, title: product.title, author: product.author.name, price: product.price, imageUrl: product.imageUrl, licenseType: 'Personal' })} className="w-full mt-3 bg-surface-container-high text-on-surface py-3 rounded-lg font-label-md hover:opacity-90">Add to cart</button>
+          )}
+          <p className="text-body-sm text-on-surface-variant mt-4">{isFree ? 'Free download · Lifetime access' : 'Personal license · Lifetime access'}</p>
         </div>
         <div className="bg-surface-container-lowest border border-surface-variant rounded-xl p-5 flex items-center gap-3">
           {product.author.avatarUrl ? <Image src={product.author.avatarUrl} alt={product.author.name} width={48} height={48} className="rounded-full object-cover" /> : <div className="w-12 h-12 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold">{product.author.name.charAt(0)}</div>}
@@ -59,6 +77,6 @@ export default function ProductDetail() {
         <div className="text-body-sm text-on-surface-variant">{product.viewsCount.toLocaleString()} views · Updated {new Date(product.createdAt).toLocaleDateString()}</div>
       </aside>
     </div>
-    {related.length > 0 && <section className="mt-16 pt-10 border-t border-surface-variant"><h2 className="text-headline-md text-on-surface mb-7">More in {product.category}</h2><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">{related.map((item) => <ProductCard key={item.id} id={item.id} title={item.title} author={item.author.name} price={item.price} rating={5} category={item.category} imageUrl={item.imageUrl} />)}</div></section>}
+    {related.length > 0 && <section className="mt-16 pt-10 border-t border-surface-variant"><h2 className="text-headline-md text-on-surface mb-7">More in {product.category}</h2><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">{related.map((item) => <ProductCard key={item.id} id={item.id} title={item.title} author={item.author.name} price={item.price} rating={5} category={item.category} imageUrl={item.imageUrl} fileUrl={item.fileUrl} />)}</div></section>}
   </main>;
 }

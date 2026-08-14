@@ -45,16 +45,21 @@ export async function POST(request: Request) {
 
     const { title, description, category, price, imageUrl, tags, fileUrl } = await request.json();
     const numericPrice = Number(price);
-    if (!title?.trim() || !category?.trim() || !Number.isFinite(numericPrice) || numericPrice <= 0) {
+    if (!title?.trim() || !category?.trim() || !Number.isFinite(numericPrice) || numericPrice < 0) {
       return NextResponse.json({ error: 'Title, category, and a valid price are required' }, { status: 400 });
     }
 
     const product = await prisma.product.create({
       data: {
-        title: title.trim(), description: description?.trim() || '', category: category.trim(), price: numericPrice,
-        imageUrl: typeof imageUrl === 'string' && imageUrl.startsWith('/') ? imageUrl : '/images/product-saas-checkout.jpg',
-        fileUrl: typeof fileUrl === 'string' ? fileUrl : null, tags: typeof tags === 'string' ? tags.trim() || null : null,
-        status: 'ACTIVE', authorId: session.userId,
+        title: title.trim(),
+        description: description?.trim() || '',
+        category: category.trim(),
+        price: numericPrice,
+        imageUrl: typeof imageUrl === 'string' && imageUrl.trim() ? imageUrl : '/images/product-saas-checkout.jpg',
+        fileUrl: typeof fileUrl === 'string' && fileUrl.trim() ? fileUrl : null,
+        tags: typeof tags === 'string' ? tags.trim() || null : null,
+        status: 'ACTIVE',
+        authorId: session.userId,
       },
     });
     return NextResponse.json({ success: true, product }, { status: 201 });
