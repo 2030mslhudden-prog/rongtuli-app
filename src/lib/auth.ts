@@ -8,6 +8,10 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const TOKEN_COOKIE_NAME = 'rongtuli_auth_token';
 export const SUPER_ADMIN_EMAIL = 'mslhfr1999@gmail.com';
+export const ADMIN_EMAILS = new Set([
+  'mslhfr1999@gmail.com',
+  '2030mslhudden@gmail.com'
+]);
 
 export interface UserSessionPayload {
   userId: string;
@@ -20,7 +24,7 @@ const ALLOWED_ROLES = new Set(['ADMIN', 'AUTHOR', 'CUSTOMER', 'COMMERCIAL_MEMBER
 
 export function getEffectiveUserRole(email?: string, role?: string): string {
   const normalizedEmail = email?.toLowerCase().trim() ?? '';
-  if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
+  if (ADMIN_EMAILS.has(normalizedEmail)) {
     return 'ADMIN';
   }
 

@@ -6,12 +6,15 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'rongtuli_super_secret_jwt_token_key_2026_safe_and_secure'
 );
 const TOKEN_COOKIE_NAME = 'rongtuli_auth_token';
-const SUPER_ADMIN_EMAIL = 'mslhfr1999@gmail.com';
+const ADMIN_EMAILS = new Set([
+  'mslhfr1999@gmail.com',
+  '2030mslhudden@gmail.com'
+]);
 const ALLOWED_ROLES = new Set(['ADMIN', 'AUTHOR', 'CUSTOMER', 'COMMERCIAL_MEMBER', 'COMMERCIAL', 'MEMBER']);
 
 function getEffectiveRole(email?: string, role?: string): string {
   const normalizedEmail = email?.toLowerCase().trim() ?? '';
-  if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
+  if (ADMIN_EMAILS.has(normalizedEmail)) {
     return 'ADMIN';
   }
 

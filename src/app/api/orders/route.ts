@@ -49,9 +49,47 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
-  const session = await getCurrentSession();
-  if (!session) return NextResponse.json({ orders: [] });
-  const orders = await prisma.order.findMany({ where: { userId: session.userId }, include: { items: { include: { product: true } } }, orderBy: { createdAt: 'desc' } });
-  return NextResponse.json({ orders });
+export async function GET(request: Request) {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+
+    const { searchParams } = new URL(request.url);
+    const orderNumber = searchParams.get('orderNumber');
+
+    if (orderNumber) {
+      const order = await prisma.order.findFirst({
+        where: {
+          orderNumber,
+          userId: session.userId,
+        },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  title: true,
+                  imageUrl: true,
+                  fileUrl: true,
+                  price: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      return NextResponse.json({ order });
+    }
+
+    const orders = await prisma.order.findMany({
+      where: { userId: session.userId },
+      include: { items: { include: { product: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return NextResponse.json({ orders });
+  } catch (error) {
+    console.error('Fetch orders error:', error);
+    return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
+  }
 }

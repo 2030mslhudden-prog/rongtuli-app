@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { comparePassword, getEffectiveUserRole, setSessionCookie, SUPER_ADMIN_EMAIL } from '@/lib/auth';
+import { comparePassword, getEffectiveUserRole, setSessionCookie, ADMIN_EMAILS } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     const effectiveRole = getEffectiveUserRole(user.email, user.role);
 
-    if (user.email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    if (ADMIN_EMAILS.has(user.email.toLowerCase().trim())) {
       await prisma.user.update({
         where: { id: user.id },
         data: { role: 'ADMIN' },

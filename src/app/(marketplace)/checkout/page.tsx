@@ -21,6 +21,7 @@ interface CardForm {
 
 interface MobileForm {
   number: string;
+  trxId?: string;
 }
 
 type FormErrors = Partial<BillingForm & CardForm & MobileForm & { [key: string]: string }>;
@@ -49,7 +50,7 @@ export default function CheckoutPage() {
     name: '',
   });
 
-  const [mobile, setMobile] = useState<MobileForm>({ number: '' });
+  const [mobile, setMobile] = useState<MobileForm>({ number: '', trxId: '' });
 
   useEffect(() => { setIsMounted(true); }, []);
 
@@ -114,7 +115,7 @@ export default function CheckoutPage() {
 
       const data = await res.json();
       clearCart();
-      router.push(`/order-success?order=${encodeURIComponent(data.order.orderNumber)}&status=${encodeURIComponent(data.order.status)}`);
+      router.push(`/order-success?order=${encodeURIComponent(data.order.orderNumber)}&status=${encodeURIComponent(data.order.status)}&method=${encodeURIComponent(paymentMethod)}&sender=${encodeURIComponent(mobile.number)}&trx=${encodeURIComponent(mobile.trxId || '')}&amount=${encodeURIComponent(total.toFixed(2))}`);
     } catch (err) {
       setIsProcessing(false);
       alert('অর্ডার প্রক্রিয়া করতে সমস্যা হয়েছে।');
@@ -335,24 +336,57 @@ export default function CheckoutPage() {
                   )}
 
                   {['bkash', 'nagad', 'rocket'].includes(paymentMethod) && (
-                    <div>
-                      <label className="block font-label-sm text-label-sm text-on-surface-variant/80 mb-1.5 ml-1" htmlFor="mobileNum">
-                        {paymentMethod === 'bkash' ? 'bKash' : paymentMethod === 'nagad' ? 'Nagad' : 'Rocket'} Mobile Number
-                      </label>
-                      <div className="relative">
-                        <input
-                          id="mobileNum"
-                          type="tel"
-                          value={mobile.number}
-                          onChange={e => setMobile({ number: e.target.value })}
-                          placeholder="+880 1XXX-XXXXXX"
-                          className={`w-full bg-surface hover:bg-surface-container-low border rounded-xl px-4 py-3 pl-12 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all ${errors.number ? 'border-error' : 'border-surface-variant'}`}
-                        />
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">smartphone</span>
+                    <div className="space-y-5">
+                      <div className="bg-[#1b6b4b]/10 border border-[#1b6b4b]/20 p-4 rounded-xl">
+                        <p className="text-secondary font-bold text-label-md flex items-center gap-1.5 mb-2">
+                          <span className="material-symbols-outlined text-[20px]">payments</span>
+                          ম্যানুয়াল পেমেন্ট নির্দেশিকা (Personal Send Money)
+                        </p>
+                        <p className="text-body-sm text-on-surface">
+                          আমাদের <span className="font-bold text-primary capitalize">{paymentMethod}</span> পার্সোনাল নম্বরে মোট <span className="font-bold text-secondary">৳{total.toFixed(2)}</span> সেন্ডমানি (Send Money) করুন।
+                        </p>
+                        <p className="text-headline-md text-on-surface font-bold mt-2 tracking-wide select-all text-center p-2 bg-surface rounded border">
+                          +880 1313-895658
+                        </p>
                       </div>
-                      {errors.number && <p className="text-error text-label-sm mt-1 ml-1">{errors.number}</p>}
-                      <p className="text-body-sm font-body-sm text-on-surface-variant mt-3">
-                        You will receive a payment prompt on this number. Confirm to complete the purchase.
+
+                      <div>
+                        <label className="block font-label-sm text-label-sm text-on-surface-variant/80 mb-1.5 ml-1" htmlFor="mobileNum">
+                          যে নম্বর থেকে সেন্ডমানি করেছেন (Sender Number) *
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="mobileNum"
+                            type="tel"
+                            value={mobile.number}
+                            onChange={e => setMobile(m => ({ ...m, number: e.target.value }))}
+                            placeholder="যেমন: 017XXXXXXXX"
+                            className={`w-full bg-surface hover:bg-surface-container-low border rounded-xl px-4 py-3 pl-12 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all ${errors.number ? 'border-error' : 'border-surface-variant'}`}
+                          />
+                          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">smartphone</span>
+                        </div>
+                        {errors.number && <p className="text-error text-label-sm mt-1 ml-1">{errors.number}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block font-label-sm text-label-sm text-on-surface-variant/80 mb-1.5 ml-1" htmlFor="trxId">
+                          পেমেন্ট ট্রান্সেকশন আইডি (Transaction ID / TrxID) *
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="trxId"
+                            type="text"
+                            value={mobile.trxId || ''}
+                            onChange={e => setMobile(m => ({ ...m, trxId: e.target.value }))}
+                            placeholder="যেমন: BKA98765432"
+                            className={`w-full bg-surface hover:bg-surface-container-low border border-surface-variant rounded-xl px-4 py-3 pl-12 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary transition-all`}
+                          />
+                          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">receipt</span>
+                        </div>
+                      </div>
+
+                      <p className="text-body-sm font-body-sm text-on-surface-variant">
+                        টাকা পাঠানোর পর সচল ট্রান্সেকশন আইডি দিয়ে পেমেন্ট সম্পন্ন করুন। সফল অর্ডারের পর ডাউনলোড ভেরিফিকেশনের জন্য ওয়াটস্যাপে মেসেজ দেওয়ার বাটন পাবেন।
                       </p>
                     </div>
                   )}

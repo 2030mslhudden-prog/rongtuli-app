@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useParams } from 'next/navigation';
 
-export default function UploadPage() {
+export default function EditProductPage() {
+  const { id } = useParams<{ id: string }>();
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -13,11 +16,38 @@ export default function UploadPage() {
   const [banner, setBanner] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [sourceFiles, setSourceFiles] = useState<File | null>(null);
+  
+  const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const sourceFilesInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch product data on load
+  useEffect(() => {
+    fetch(`/api/products/${id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) => {
+        const product = data.product;
+        if (product) {
+          setTitle(product.title);
+          setDescription(product.description);
+          setPrice(String(product.price));
+          setCategory(product.category);
+          setSelectedProductType(product.tags || 'print');
+          setBannerPreview(product.imageUrl);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        alert('ডিজাইনের তথ্য লোড করা যায়নি।');
+        setLoading(false);
+      });
+  }, [id]);
 
   const handleBannerSelect = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -70,10 +100,6 @@ export default function UploadPage() {
       alert('অনুগ্রহ করে একটি ক্যাটেগরি নির্বাচন করুন।');
       return false;
     }
-    if (!banner) {
-      alert('ডিজাইনের ব্যানার/প্রিভিউ ইমেজ আপলোড করুন।');
-      return false;
-    }
     return true;
   };
 
@@ -84,7 +110,6 @@ export default function UploadPage() {
       const response = await fetch('/api/files/upload', { method: 'POST', body: formData });
       if (response.ok) {
         const data = await response.json();
-        console.log('File uploaded:', data.key);
         return { key: data.key, url: data.url };
       }
       const err = await response.json();
@@ -96,48 +121,59 @@ export default function UploadPage() {
     }
   };
 
-  const handlePublish = async () => {
+  const handleSave = async (statusOverride?: string) => {
     if (!validateForm()) return;
     setIsSubmitting(true);
     try {
-      if (!banner) return;
-      
-      // Upload Banner Image
-      const bannerResult = await uploadFileToR2(banner);
-      if (!bannerResult) {
-        alert('ব্যানার ইমেজ আপলোড করতে সমস্যা হয়েছে। R2 স্টোরেজ কনফিগারেশন চেক করুন।');
-        setIsSubmitting(false);
-        return;
-      }
+      let finalImageUrl = bannerPreview;
+      let finalSourceFilesKey = undefined;
 
-      // Upload Source File (ZIP) if selected
-      let sourceFilesKey: string | null = null;
-      if (sourceFiles) {
-        const sourceResult = await uploadFileToR2(sourceFiles);
-        if (!sourceResult) {
-          alert('সোর্স ফাইল (ZIP) আপলোড করতে সমস্যা হয়েছে।');
+      // Upload Banner Image if updated
+      if (banner) {
+        const bannerResult = await uploadFileToR2(banner);
+        if (!bannerResult) {
+          alert('নতুন ব্যানার ইমেজ আপলোড করতে সমস্যা হয়েছে। R2 স্টোরেজ কনফিগারেশন চেক করুন।');
           setIsSubmitting(false);
           return;
         }
-        sourceFilesKey = sourceResult.key; // Store key for signed download URLs
+        finalImageUrl = bannerResult.url;
       }
 
-      const response = await fetch('/api/products', {
-        method: 'POST',
+      // Upload Source File (ZIP) if updated
+      if (sourceFiles) {
+        const sourceResult = await uploadFileToR2(sourceFiles);
+        if (!sourceResult) {
+          alert('নতুন সোর্স ফাইল (ZIP) আপলোড করতে সমস্যা হয়েছে।');
+          setIsSubmitting(false);
+          return;
+        }
+        finalSourceFilesKey = sourceResult.key;
+      }
+
+      const payload: any = {
+        title: title.trim(),
+        description: description.trim(),
+        price: parseFloat(price),
+        category,
+        imageUrl: finalImageUrl,
+        tags: selectedProductType,
+      };
+
+      if (finalSourceFilesKey !== undefined) {
+        payload.fileUrl = finalSourceFilesKey;
+      }
+      if (statusOverride) {
+        payload.status = statusOverride;
+      }
+
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          price: parseFloat(price),
-          category,
-          imageUrl: bannerResult.url, // Store public R2 URL for public rendering
-          fileUrl: sourceFilesKey, // Store key for protected download
-          tags: selectedProductType,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        alert('ডিজাইন "' + title + '" সফলভাবে পাবলিশ হয়েছে! 🎉');
+        alert('ডিজাইন সফলভাবে আপডেট করা হয়েছে! 🎉');
         window.location.href = '/dashboard/assets';
       } else {
         const errorData = await response.json();
@@ -145,64 +181,20 @@ export default function UploadPage() {
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('পাবলিশ করতে সমস্যা হয়েছে: ' + (error instanceof Error ? error.message : 'Unknown'));
+      alert('আপডেট করতে সমস্যা হয়েছে: ' + (error instanceof Error ? error.message : 'Unknown'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSaveDraft = async () => {
-    if (!title.trim()) {
-      alert('খসড়া সংরক্ষণ করতে অন্ততঃ ডিজাইনের শিরোনাম প্রয়োজন।');
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      let bannerUrl: string | null = null;
-      if (banner) {
-        const bannerResult = await uploadFileToR2(banner);
-        if (bannerResult) {
-          bannerUrl = bannerResult.url;
-        }
-      }
-      
-      let sourceFilesKey: string | null = null;
-      if (sourceFiles) {
-        const sourceResult = await uploadFileToR2(sourceFiles);
-        if (sourceResult) {
-          sourceFilesKey = sourceResult.key;
-        }
-      }
-
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          price: price ? parseFloat(price) : 0,
-          category: category || 'Uncategorized',
-          imageUrl: bannerUrl || '/images/product-saas-checkout.jpg',
-          fileUrl: sourceFilesKey,
-          tags: selectedProductType,
-          status: 'DRAFT',
-        }),
-      });
-
-      if (response.ok) {
-        alert('ডিজাইন খসড়া (Draft) হিসেবে সংরক্ষণ করা হয়েছে! 📁');
-        window.location.href = '/dashboard/assets';
-      } else {
-        const errorData = await response.json();
-        alert('ড্রাফট সংরক্ষণে ত্রুটি: ' + (errorData.error || response.statusText));
-      }
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      alert('ড্রাফট সংরক্ষণে সমস্যা হয়েছে: ' + (error instanceof Error ? error.message : 'Unknown'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="max-w-container-max mx-auto p-12 text-center text-on-surface-variant">
+        <span className="material-symbols-outlined text-4xl mb-2 animate-spin text-primary">autorenew</span>
+        <p className="text-body-sm">লোড হচ্ছে…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-container-max mx-auto p-4 md:p-6">
@@ -212,29 +204,29 @@ export default function UploadPage() {
           <div className="flex items-center space-x-2 text-on-surface-variant mb-2">
             <span className="font-label-sm text-label-sm uppercase tracking-wider">ড্যাশবোর্ড</span>
             <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-            <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-bold">ডিজাইন আপলোড</span>
+            <span className="font-label-sm text-label-sm uppercase tracking-wider">আমার ডিজাইনসমূহ</span>
+            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-bold">ডিজাইন সম্পাদনা</span>
           </div>
-          <h1 className="font-headline-lg text-headline-lg text-on-surface">নতুন ডিজাইন আপলোড করুন</h1>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-2 max-w-2xl">মার্কেটপ্লেসে নতুন একটি ডিজিটাল ডিজাইন রিসোর্স বা প্রিণ্ট রেডি ফাইল যুক্ত করুন। ফাইলগুলো R2 স্টোরেজে সুরক্ষিতভাবে সংরক্ষিত হবে।</p>
+          <h1 className="font-headline-lg text-headline-lg text-on-surface">ডিজাইন সম্পাদনা করুন</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-2 max-w-2xl">ডিজাইনের বিবরণ, মূল্য, প্রিভিউ অথবা সোর্স ফাইল পরিবর্তন করুন। পরিবর্তনগুলো মার্কেটপ্লেসে সরাসরি আপডেট হবে।</p>
         </div>
 
         <div className="mt-4 md:mt-0 flex gap-3">
-          <button
-            type="button"
-            onClick={handleSaveDraft}
-            disabled={isSubmitting}
-            className="px-5 py-2.5 rounded-lg border-2 border-outline text-on-surface font-label-md text-label-md hover:border-primary hover:text-primary transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          <Link
+            href="/dashboard/assets"
+            className="px-5 py-2.5 rounded-lg border-2 border-outline text-on-surface font-label-md text-label-md hover:border-primary hover:text-primary transition-all text-center"
           >
-            {isSubmitting ? 'সংরক্ষণ হচ্ছে...' : 'ড্রাফট সেভ করুন'}
-          </button>
+            বাতিল করুন
+          </Link>
           <button
             type="button"
-            onClick={handlePublish}
+            onClick={() => handleSave()}
             disabled={isSubmitting}
             className="px-5 py-2.5 rounded-lg bg-primary text-white font-label-md text-label-md hover:bg-opacity-90 transition-all shadow-sm hover:shadow-md cursor-pointer disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center space-x-2"
           >
-            <span className="material-symbols-outlined text-[18px]">{isSubmitting ? 'hourglass_empty' : 'cloud_upload'}</span>
-            <span>{isSubmitting ? 'আপলোড হচ্ছে...' : 'পাবলিশ করুন'}</span>
+            <span className="material-symbols-outlined text-[18px]">{isSubmitting ? 'hourglass_empty' : 'save'}</span>
+            <span>{isSubmitting ? 'আপডেট হচ্ছে...' : 'আপডেট সেভ করুন'}</span>
           </button>
         </div>
       </div>
@@ -247,9 +239,9 @@ export default function UploadPage() {
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 p-6 shadow-sm">
             <h2 className="font-headline-md text-headline-md text-on-surface mb-2 flex items-center space-x-2">
               <span className="material-symbols-outlined text-primary">perm_media</span>
-              <span>মিডিয়া ও সোর্স ফাইল</span>
+              <span>মিডিয়া ও সোর্স ফাইল পরিবর্তন</span>
             </h2>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mb-6">উচ্চমানের ব্যানার ইমেজ এবং চূড়ান্ত সোর্স ফাইল আপলোড করুন।</p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant mb-6">নতুন ব্যানার ইমেজ বা প্রজেক্ট জিপ ফাইল আপলোড করতে পারেন। কোনো নতুন ফাইল আপলোড না করলে পূর্বের ফাইলই বহাল থাকবে।</p>
             
             <div className="space-y-6">
               {/* Product Preview Image Dropzone */}
@@ -277,7 +269,7 @@ export default function UploadPage() {
                         unoptimized
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                        <span className="text-white text-sm bg-black/60 px-4 py-2 rounded-full font-bold">ইমেজ পরিবর্তন করুন</span>
+                        <span className="text-white text-sm bg-black/60 px-4 py-2 rounded-full font-bold">নতুন ইমেজ পরিবর্তন করুন</span>
                       </div>
                     </div>
                   ) : (
@@ -287,12 +279,6 @@ export default function UploadPage() {
                       </div>
                       <p className="font-label-md text-label-md text-on-surface mb-1">প্রিভিউ ইমেজ ড্র্যাগ করুন অথবা এখানে ক্লিক করুন</p>
                       <p className="font-body-sm text-body-sm text-on-surface-variant mb-4">সমর্থিত ফরম্যাট: JPG, PNG, WEBP (সর্বোচ্চ 5MB)</p>
-                      <button
-                        className="px-4 py-2 rounded-lg bg-surface-container-lowest shadow-sm border border-outline text-on-surface font-label-sm text-label-sm hover:border-primary transition-colors cursor-pointer"
-                        type="button"
-                      >
-                        ফাইল খুঁজুন
-                      </button>
                     </>
                   )}
                   <input
@@ -303,17 +289,11 @@ export default function UploadPage() {
                     onChange={handleBannerFileSelect}
                   />
                 </div>
-                {banner && !bannerPreview && (
-                  <p className="mt-2 text-sm text-secondary font-bold flex items-center">
-                    <span className="material-symbols-outlined text-[18px] mr-1">check_circle</span>
-                    {banner.name} যুক্ত হয়েছে
-                  </p>
-                )}
               </div>
 
               {/* Source Zip File Upload */}
               <div>
-                <label className="block font-label-sm text-label-sm text-on-surface mb-2 font-bold">সোর্স ফাইল (ZIP/RAR) - ঐচ্ছিক</label>
+                <label className="block font-label-sm text-label-sm text-on-surface mb-2 font-bold">নতুন সোর্স ফাইল (ZIP/RAR) - ঐচ্ছিক</label>
                 <div
                   className="border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low hover:border-primary/50 transition-colors p-6 flex items-center space-x-4 cursor-pointer group relative"
                   onClick={() => sourceFilesInputRef.current?.click()}
@@ -322,8 +302,8 @@ export default function UploadPage() {
                     <span className="material-symbols-outlined text-2xl text-primary">folder_zip</span>
                   </div>
                   <div className="flex-1">
-                    <p className="font-label-md text-label-md text-on-surface">মূল প্রজেক্ট সোর্স ফাইল আপলোড করুন</p>
-                    <p className="font-body-sm text-body-sm text-on-surface-variant">ফাইল সাইজ সর্বোচ্চ ৫০০ মেগাবাইট (AI, PSD, EPS, FIG, ZIP)</p>
+                    <p className="font-label-md text-label-md text-on-surface">নতুন প্রজেক্ট সোর্স ফাইল আপলোড করতে এখানে ক্লিক করুন</p>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">ফাইল পরিবর্তন করতে চাইলে নতুন ফাইলটি নির্বাচন করুন (সর্বোচ্চ ৫০০ মেগাবাইট)</p>
                   </div>
                   <button
                     className="px-4 py-2 rounded-lg bg-surface-container-lowest shadow-sm border border-outline text-on-surface font-label-sm text-label-sm hover:border-primary transition-colors shrink-0 cursor-pointer"
@@ -342,7 +322,7 @@ export default function UploadPage() {
                 {sourceFiles && (
                   <p className="mt-2 text-sm text-secondary font-bold flex items-center">
                     <span className="material-symbols-outlined text-[18px] mr-1">check_circle</span>
-                    সোর্স ফাইল: {sourceFiles.name} ({ (sourceFiles.size / (1024 * 1024)).toFixed(2) } MB)
+                    নতুন ফাইল: {sourceFiles.name} ({ (sourceFiles.size / (1024 * 1024)).toFixed(2) } MB)
                   </p>
                 )}
               </div>
@@ -374,7 +354,7 @@ export default function UploadPage() {
                 <label className="block font-label-sm text-label-sm text-on-surface mb-2 font-bold">ডিজাইনের বিবরণ/ডিসক্রিপশন *</label>
                 <textarea
                   className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow resize-y placeholder:text-on-surface-variant/40"
-                  placeholder="এই টেমপ্লেটের সুবিধাসমূহ, ডাইমেনশন, ফন্ট ব্যবহারের লিংক এবং অন্যান্য বিস্তারিত বিবরণ লিখুন..."
+                  placeholder="বিস্তারিত বিবরণ লিখুন..."
                   rows={6}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -390,7 +370,7 @@ export default function UploadPage() {
                     <input
                       className="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-8 pr-4 py-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow"
                       id="product-price"
-                      placeholder="0.00 (ফ্রি ফ্লো হলে 0 লিখুন)"
+                      placeholder="0.00"
                       type="number"
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
@@ -456,28 +436,10 @@ export default function UploadPage() {
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 p-6 shadow-sm sticky top-6">
             <h3 className="font-headline-md text-headline-md text-on-surface mb-4 flex items-center space-x-2">
               <span className="material-symbols-outlined text-primary">info</span>
-              <span>আপলোড গাইডলাইনস</span>
+              <span>আপডেট গাইডলাইনস</span>
             </h3>
-            <ul className="space-y-3 text-body-sm text-on-surface-variant">
-              <li className="flex space-x-2">
-                <span className="text-secondary font-bold">✓</span>
-                <span>উচ্চমানের ব্যানার ইমেজ (সাইজ 1280x720 পিক্সেল হলে ভালো হয়)।</span>
-              </li>
-              <li className="flex space-x-2">
-                <span className="text-secondary font-bold">✓</span>
-                <span>সোর্স ফাইলটি সুন্দরভাবে গ্রুপ করে জিপ (ZIP) আকারে রাখুন।</span>
-              </li>
-              <li className="flex space-x-2">
-                <span className="text-secondary font-bold">✓</span>
-                <span>বিবরণে কোন ফন্ট ব্যবহার করেছেন তার লিংক দিলে ক্রেতার সুবিধা হবে।</span>
-              </li>
-              <li className="flex space-x-2">
-                <span className="text-secondary font-bold">✓</span>
-                <span>মূল্য সঠিকভাবে উল্লেখ করুন। ফ্রি হলে 0 লিখুন।</span>
-              </li>
-            </ul>
-            <p className="text-body-sm text-on-surface-variant/70 mt-6 pt-6 border-t border-outline-variant/30">
-              ফাইলগুলো সরাসরি Cloudflare R2 ক্লাউড স্টোরেজে সুরক্ষিত উপায়ে আপলোড করা হবে। আপনার ডিজাইনের গুণগত মান ঠিক থাকলে এডমিন সরাসরি পাবলিশ অনুমোদন করবেন।
+            <p className="text-body-sm text-on-surface-variant">
+              ডিজাইন ইনফরমেশন পরিবর্তন করার পরে অবশ্যই "আপডেট সেভ করুন" বাটনটি ক্লিক করুন। কোনো তথ্য অসম্পূর্ণ থাকলে তা আপডেট করতে দেয়া হবে না।
             </p>
           </div>
         </div>

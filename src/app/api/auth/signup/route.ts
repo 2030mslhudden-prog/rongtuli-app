@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hashPassword, setSessionCookie } from '@/lib/auth';
+import { hashPassword, setSessionCookie, ADMIN_EMAILS } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     const normalizedEmail = email.toLowerCase().trim();
     const passwordHash = await hashPassword(password);
-    const isSuperAdmin = normalizedEmail === 'mslhfr1999@gmail.com';
+    const isSuperAdmin = ADMIN_EMAILS.has(normalizedEmail);
     const normalizedAccountType = String(accountType || 'PERSONAL').toUpperCase();
     const computedRole = isSuperAdmin ? 'ADMIN' : normalizedAccountType === 'COMMERCIAL' ? 'COMMERCIAL_MEMBER' : 'AUTHOR';
 
