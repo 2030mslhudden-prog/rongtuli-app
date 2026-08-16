@@ -346,7 +346,7 @@ export default function CheckoutPage() {
                           আমাদের <span className="font-bold text-primary capitalize">{paymentMethod}</span> পার্সোনাল নম্বরে মোট <span className="font-bold text-secondary">৳{total.toFixed(2)}</span> সেন্ডমানি (Send Money) করুন।
                         </p>
                         <p className="text-headline-md text-on-surface font-bold mt-2 tracking-wide select-all text-center p-2 bg-surface rounded border">
-                          +880 1313-895658
+                          01313895658
                         </p>
                       </div>
 

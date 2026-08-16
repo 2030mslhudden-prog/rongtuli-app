@@ -216,7 +216,7 @@ export default function HomePage() {
               </div>
               <div className="scroll-track-container">
                 <div className="scroll-track">
-                  {[...uiKitList, ...uiKitList].map((card, index) => (
+                  {Array(8).fill(uiKitList).flat().map((card, index) => (
                     <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
                       <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
                       <div className="p-4">
@@ -236,7 +236,7 @@ export default function HomePage() {
               </div>
               <div className="scroll-track-container">
                 <div className="scroll-track reverse">
-                  {[...vectorList, ...vectorList].map((card, index) => (
+                  {Array(8).fill(vectorList).flat().map((card, index) => (
                     <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
                       <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
                       <div className="p-4">

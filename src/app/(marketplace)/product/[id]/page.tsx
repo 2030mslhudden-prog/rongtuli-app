@@ -57,18 +57,33 @@ export default function ProductDetail() {
           <span className="text-label-sm text-secondary uppercase">{product.category}</span>
           <h1 className="text-headline-lg text-on-surface mt-2 mb-4">{product.title}</h1>
           <p className="text-headline-xl text-primary mb-6">{formatAssetPrice(product.price)}</p>
-          <a
-            href={ctaHref}
-            target={isFree ? undefined : '_blank'}
-            rel={isFree ? undefined : 'noreferrer'}
-            className="block w-full bg-primary text-on-primary py-3 rounded-lg font-label-md text-center hover:opacity-90"
-          >
-            {isFree ? 'Download' : 'Buy via WhatsApp'}
-          </a>
-          {!isFree && (
-            <button onClick={() => addItem({ id: product.id, title: product.title, author: product.author.name, price: product.price, imageUrl: product.imageUrl, licenseType: 'Personal' })} className="w-full mt-3 bg-surface-container-high text-on-surface py-3 rounded-lg font-label-md hover:opacity-90">Add to cart</button>
+          {isFree ? (
+            <a
+              href={ctaHref}
+              className="block w-full bg-primary text-on-primary py-3 rounded-lg font-label-md text-center hover:opacity-90 transition-opacity"
+            >
+              Download
+            </a>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  addItem({ id: product.id, title: product.title, author: product.author.name, price: product.price, imageUrl: product.imageUrl, licenseType: 'Personal' });
+                  window.location.href = '/checkout';
+                }}
+                className="w-full bg-primary text-on-primary py-3 rounded-lg font-label-md hover:opacity-90 transition-opacity"
+              >
+                Buy Now
+              </button>
+              <button
+                onClick={() => addItem({ id: product.id, title: product.title, author: product.author.name, price: product.price, imageUrl: product.imageUrl, licenseType: 'Personal' })}
+                className="w-full mt-3 bg-surface-container-high text-on-surface py-3 rounded-lg font-label-md hover:opacity-90 transition-opacity"
+              >
+                Add to cart
+              </button>
+            </>
           )}
-          <p className="text-body-sm text-on-surface-variant mt-4">{isFree ? 'Free download · Lifetime access' : 'Personal license · Lifetime access'}</p>
+          <p className="text-body-sm text-on-surface-variant mt-4 text-center">{isFree ? 'Free download · Lifetime access' : 'Personal license · Lifetime access'}</p>
         </div>
         <div className="bg-surface-container-lowest border border-surface-variant rounded-xl p-5 flex items-center gap-3">
           {product.author.avatarUrl ? <Image src={product.author.avatarUrl} alt={product.author.name} width={48} height={48} className="rounded-full object-cover" /> : <div className="w-12 h-12 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold">{product.author.name.charAt(0)}</div>}
