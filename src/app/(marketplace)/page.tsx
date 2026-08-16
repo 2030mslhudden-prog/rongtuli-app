@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 
 const uiKitCards = [
@@ -30,19 +30,47 @@ const featuredCards = [
 
 export default function HomePage() {
   const [dbProducts, setDbProducts] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
 
   useEffect(() => {
+    // Read search query from URL
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('search') || '';
+    setSearchQuery(q);
+
     fetch('/api/products')
       .then((res) => res.json())
       .then((data) => {
         if (data && data.products) {
-          // Filter to only show ACTIVE designs on the homepage
           const activeOnly = data.products.filter((p: any) => p.status === 'ACTIVE');
           setDbProducts(activeOnly);
+          if (q) {
+            const lower = q.toLowerCase();
+            setSearchResults(activeOnly.filter((p: any) =>
+              p.title?.toLowerCase().includes(lower) ||
+              p.description?.toLowerCase().includes(lower) ||
+              p.category?.toLowerCase().includes(lower)
+            ));
+          }
         }
       })
       .catch((err) => console.error('Error fetching products:', err));
   }, []);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    const lower = searchQuery.toLowerCase();
+    setSearchResults(dbProducts.filter((p: any) =>
+      p.title?.toLowerCase().includes(lower) ||
+      p.description?.toLowerCase().includes(lower) ||
+      p.category?.toLowerCase().includes(lower)
+    ));
+  };
 
   const uiKits = dbProducts.filter(p => p.category === 'UI Kits' || p.category === 'Templates' || p.category === 'Print Templates' || p.category === 'MAHFIL');
   const uiKitList = uiKits.length > 0 ? uiKits.map(p => ({
@@ -68,7 +96,43 @@ export default function HomePage() {
   })) : featuredCards;
   return (
     <div className="bg-background text-on-background font-body-md antialiased transition-colors duration-300">
-      <section className="relative pt-24 pb-32 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto overflow-hidden">
+      {/* Search Results Overlay */}
+      {searchResults !== null && (
+        <section className="py-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-headline-lg font-headline-lg text-on-surface">
+              &ldquo;{searchQuery}&rdquo; এর ফলাফল
+              <span className="text-body-md text-on-surface-variant ml-2">({searchResults.length}টি পাওয়া গেছে)</span>
+            </h2>
+            <button
+              onClick={() => { setSearchResults(null); setSearchQuery(''); }}
+              className="text-sm text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+              সব দেখুন
+            </button>
+          </div>
+          {searchResults.length === 0 ? (
+            <p className="text-body-lg text-on-surface-variant text-center py-16">কোনো ডিজাইন পাওয়া যায়নি।</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {searchResults.map((p) => (
+                <Link key={p.id} href={`/product/${p.id}`} className="group flex flex-col gap-3 rounded-2xl border border-outline-variant overflow-hidden hover:shadow-md transition-all">
+                  <img src={p.imageUrl} alt={p.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="p-4">
+                    <h3 className="font-headline-md text-on-surface truncate">{p.title}</h3>
+                    <p className="text-primary font-bold mt-1">{p.price <= 0 ? 'বিনামূল্যে' : `৳${p.price}`}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Hero Section — hidden when searching */}
+      {searchResults === null && (
+      <section className="relative pt-14 pb-32 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto overflow-hidden">
           <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle at top right, #d3151a 0%, transparent 40%), radial-gradient(circle at bottom left, #005C3D 0%, transparent 40%)" }} />
           <div className="relative z-10 flex flex-col items-center text-center max-w-3xl mx-auto space-y-8">
             <div className="mb-6 flex justify-center animate-fade-in-up">
@@ -79,15 +143,21 @@ export default function HomePage() {
               />
             </div>
 
-            <div className="flex gap-4 w-full md:w-auto animate-fade-in-up-delay-1">
+            <form onSubmit={handleSearch} className="flex gap-4 w-full md:w-auto animate-fade-in-up-delay-1">
               <div className="flex items-center bg-surface-container-lowest w-full md:w-[600px] rounded-full px-6 py-4 border border-outline-variant focus-within:border-primary shadow-sm transition-all hover:shadow-md">
                 <span className="material-symbols-outlined text-on-surface-variant mr-3">search</span>
-                <input className="bg-transparent border-none focus:ring-0 text-body-lg w-full text-on-surface placeholder:text-on-surface-variant outline-none" placeholder="Discover UI kits, fonts, templates..." type="text" />
-                <button className="bg-primary text-on-primary px-8 py-2.5 rounded-full text-label-md font-label-md hover:bg-primary-container transition-all hover:shadow-md ml-2" type="button">
+                <input
+                  className="bg-transparent border-none focus:ring-0 text-body-lg w-full text-on-surface placeholder:text-on-surface-variant outline-none"
+                  placeholder="ডিজাইন খুঁজুন..."
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <button className="bg-primary text-on-primary px-8 py-2.5 rounded-full text-label-md font-label-md hover:opacity-90 transition-all hover:shadow-md ml-2" type="submit">
                   Search
                 </button>
               </div>
-            </div>
+            </form>
 
             <ul className="flex flex-wrap justify-center items-center space-x-8 pt-6 font-label-md w-full animate-fade-in-up-delay-1">
               <li className="group relative flex items-center">
@@ -128,87 +198,93 @@ export default function HomePage() {
             </ul>
           </div>
         </section>
+      )}
 
-        <section className="py-16 bg-surface border-y border-outline-variant overflow-hidden animate-fade-in-up-delay-2">
-          <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-8">
-            <h2 className="text-headline-lg font-headline-lg text-[#0F172A]">Most Sold Products</h2>
-            <p className="text-body-md font-body-md text-on-surface-variant">Trending assets across top categories.</p>
-          </div>
-
-          <div className="mb-12">
-            <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">web</span>
-              <h3 className="text-headline-md font-headline-md text-[#0F172A]">UI Kits &amp; Templates</h3>
+      {/* Scrolling Product Sections — hidden when searching */}
+      {searchResults === null && (
+        <>
+          <section className="py-16 bg-surface border-y border-outline-variant overflow-hidden animate-fade-in-up-delay-2">
+            <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-8">
+              <h2 className="text-headline-lg font-headline-lg text-[#0F172A]">Most Sold Products</h2>
+              <p className="text-body-md font-body-md text-on-surface-variant">Trending assets across top categories.</p>
             </div>
-            <div className="scroll-track-container">
-              <div className="scroll-track">
-                {[...uiKitList, ...uiKitList].map((card, index) => (
-                  <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
-                    <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
-                    <div className="p-4">
-                      <h4 className="font-headline-md text-[18px] text-[#0F172A] truncate">{card.title}</h4>
-                      <p className="text-body-sm text-primary font-bold mt-1">{card.price}</p>
-                    </div>
-                  </Link>
-                ))}
+
+            <div className="mb-12">
+              <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">web</span>
+                <h3 className="text-headline-md font-headline-md text-[#0F172A]">UI Kits &amp; Templates</h3>
+              </div>
+              <div className="scroll-track-container">
+                <div className="scroll-track">
+                  {[...uiKitList, ...uiKitList].map((card, index) => (
+                    <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
+                      <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
+                      <div className="p-4">
+                        <h4 className="font-headline-md text-[18px] text-[#0F172A] truncate">{card.title}</h4>
+                        <p className="text-body-sm text-primary font-bold mt-1">{card.price}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mb-12">
-            <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary">brush</span>
-              <h3 className="text-headline-md font-headline-md text-[#0F172A]">Vectors &amp; Illustrations</h3>
-            </div>
-            <div className="scroll-track-container">
-              <div className="scroll-track reverse">
-                {[...vectorList, ...vectorList].map((card, index) => (
-                  <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
-                    <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
-                    <div className="p-4">
-                      <h4 className="font-headline-md text-[18px] text-[#0F172A] truncate">{card.title}</h4>
-                      <p className="text-body-sm text-primary font-bold mt-1">{card.price}</p>
-                    </div>
-                  </Link>
-                ))}
+            <div className="mb-12">
+              <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-secondary">brush</span>
+                <h3 className="text-headline-md font-headline-md text-[#0F172A]">Vectors &amp; Illustrations</h3>
+              </div>
+              <div className="scroll-track-container">
+                <div className="scroll-track reverse">
+                  {[...vectorList, ...vectorList].map((card, index) => (
+                    <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
+                      <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
+                      <div className="p-4">
+                        <h4 className="font-headline-md text-[18px] text-[#0F172A] truncate">{card.title}</h4>
+                        <p className="text-body-sm text-primary font-bold mt-1">{card.price}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="py-section-gap px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto bg-surface-container-lowest rounded-[2rem] shadow-sm my-12 animate-fade-in-up-delay-2">
-          <div className="flex justify-between items-end mb-12">
-            <div>
-              <h2 className="text-headline-lg font-headline-lg text-[#0F172A] mb-3">Featured Design Assets</h2>
-              <p className="text-body-md font-body-md text-on-surface-variant">Fresh drops from top creators, curated daily.</p>
-            </div>
-            <Link href="#" className="text-secondary font-label-md text-label-md hover:text-tertiary-container flex items-center gap-1 transition-colors font-bold tracking-wide">
-              View All
-              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 space-y-0">
-            {featuredList.map((card) => (
-              <Link key={card.id} href={`/product/${card.id}`} className="group relative flex flex-col gap-4 transition-all duration-500 group-hover:scale-105 group-hover:shadow-[0_10px_25px_rgba(27,107,75,0.12)] cursor-pointer">
-                <div className="relative overflow-hidden rounded-3xl transition-all duration-500 border border-surface-variant">
-                  <img className="w-full h-64 object-cover transition-transform duration-700 group-hover:scale-[1.03]" src={card.image} alt={card.title} />
-                  <div className="absolute top-4 left-4 bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1.5 rounded-full text-label-sm font-label-md text-on-surface flex items-center gap-1.5 shadow-sm border border-white/20">
-                    <span className="material-symbols-outlined text-[14px]">print</span>
-                    Print Available
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1 px-1">
-                  <h3 className="text-headline-md font-headline-md text-[#0F172A] text-[20px]">{card.title}</h3>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-body-sm font-body-sm text-on-surface-variant">Starts from</span>
-                    <span className="text-body-lg font-headline-md text-primary font-bold">{card.price}</span>
-                  </div>
-                </div>
+          <section className="py-section-gap px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto bg-surface-container-lowest rounded-[2rem] shadow-sm my-12 animate-fade-in-up-delay-2">
+            <div className="flex justify-between items-end mb-12">
+              <div>
+                <h2 className="text-headline-lg font-headline-lg text-[#0F172A] mb-3">Featured Design Assets</h2>
+                <p className="text-body-md font-body-md text-on-surface-variant">Fresh drops from top creators, curated daily.</p>
+              </div>
+              <Link href="#" className="text-secondary font-label-md text-label-md hover:text-tertiary-container flex items-center gap-1 transition-colors font-bold tracking-wide">
+                View All
+                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </Link>
-            ))}
-          </div>
-        </section>
-      </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 space-y-0">
+              {featuredList.map((card) => (
+                <Link key={card.id} href={`/product/${card.id}`} className="group relative flex flex-col gap-4 transition-all duration-500 group-hover:scale-105 group-hover:shadow-[0_10px_25px_rgba(27,107,75,0.12)] cursor-pointer">
+                  <div className="relative overflow-hidden rounded-3xl transition-all duration-500 border border-surface-variant">
+                    <img className="w-full h-64 object-cover transition-transform duration-700 group-hover:scale-[1.03]" src={card.image} alt={card.title} />
+                    <div className="absolute top-4 left-4 bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1.5 rounded-full text-label-sm font-label-md text-on-surface flex items-center gap-1.5 shadow-sm border border-white/20">
+                      <span className="material-symbols-outlined text-[14px]">print</span>
+                      Print Available
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1 px-1">
+                    <h3 className="text-headline-md font-headline-md text-[#0F172A] text-[20px]">{card.title}</h3>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-body-sm font-body-sm text-on-surface-variant">Starts from</span>
+                      <span className="text-body-lg font-headline-md text-primary font-bold">{card.price}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 
@@ -15,17 +16,15 @@ export default function Navigation() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const totalItems = useCartStore((state) => state.getTotalItems());
 
   useEffect(() => {
     setIsMounted(true);
-    // Fetch auth status
     fetch('/api/auth/me')
       .then((res) => res.json())
       .then((data) => {
-        if (data?.user) {
-          setUser(data.user);
-        }
+        if (data?.user) setUser(data.user);
       })
       .catch(() => setUser(null));
   }, []);
@@ -37,61 +36,99 @@ export default function Navigation() {
     router.refresh();
   };
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   return (
-    <nav className="text-[#1F2937] sticky top-0 z-50 font-label-md border-b border-outline-variant bg-surface-container-lowest/80 backdrop-blur-md">
-      <div className="flex justify-end items-center w-full px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto h-[60px]">
-        {/* Utility Menu */}
-        <div className="flex items-center gap-4">
+    <nav className="sticky top-0 z-50 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant shadow-sm">
+      <div className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto h-[64px] gap-4">
+
+        {/* Logo */}
+        <Link href="/" className="shrink-0">
+          <Image
+            alt="Rongtuli Logo"
+            src="/images/logo.png"
+            width={130}
+            height={50}
+            className="h-[48px] w-auto object-contain"
+            priority
+          />
+        </Link>
+
+        {/* Search Bar */}
+        <form
+          onSubmit={handleSearch}
+          className="hidden md:flex flex-1 max-w-md items-center bg-surface-container rounded-full px-4 py-2 border border-outline-variant focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all"
+        >
+          <span className="material-symbols-outlined text-on-surface-variant text-[20px] mr-2 shrink-0">search</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ডিজাইন খুঁজুন..."
+            className="bg-transparent flex-1 text-body-md text-on-surface placeholder:text-on-surface-variant/60 outline-none border-none"
+          />
+          {searchQuery && (
+            <button
+              type="submit"
+              className="ml-2 px-4 py-1 bg-primary text-white rounded-full text-label-sm font-bold hover:opacity-90 transition-opacity shrink-0"
+            >
+              খুঁজুন
+            </button>
+          )}
+        </form>
+
+        {/* Right Utility */}
+        <div className="flex items-center gap-3 shrink-0">
           <Link
             href="#"
-            className="bg-primary text-white px-3 py-1 rounded-full text-[12px] font-bold tracking-wider hover:bg-primary-container transition-all animate-pulse-subtle uppercase shadow-sm hover:shadow"
+            className="bg-primary text-white px-3 py-1 rounded-full text-[11px] font-bold tracking-wider hover:opacity-90 transition-all uppercase shadow-sm hidden sm:block"
           >
             Free
           </Link>
 
           {isMounted && user ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Link
                 href="/dashboard"
-                className="hover:text-primary transition-colors flex items-center gap-1.5 font-bold"
+                className="hover:text-primary transition-colors flex items-center gap-1.5 font-bold text-sm"
               >
-                <div className="w-7 h-7 rounded-full bg-[#1a6b4a] text-white flex items-center justify-center text-xs font-bold">
+                <div className="w-7 h-7 rounded-full bg-[#1a6b4a] text-white flex items-center justify-center text-xs font-bold shrink-0">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
-                <span className="hidden md:inline">{user.name}</span>
+                <span className="hidden lg:inline max-w-[100px] truncate">{user.name}</span>
               </Link>
               <button
                 onClick={handleLogout}
-                className="hover:text-error transition-colors text-xs text-on-surface-variant flex items-center gap-0.5 ml-1"
+                className="hover:text-error transition-colors text-on-surface-variant flex items-center gap-0.5"
                 title="লগআউট"
               >
-                <span className="material-symbols-outlined text-[18px]">logout</span>
+                <span className="material-symbols-outlined text-[20px]">logout</span>
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Link
                 href="/login"
                 className="hover:text-primary transition-colors text-sm font-semibold flex items-center gap-1"
               >
                 <span className="material-symbols-outlined text-[18px]">login</span>
-                লগইন
-              </Link>
-              <Link
-                href="/signup"
-                className="bg-secondary/10 text-secondary hover:bg-secondary/20 px-3 py-1 rounded-lg text-sm font-bold transition-colors hidden md:block"
-              >
-                সাইনআপ
+                <span className="hidden sm:inline">লগইন</span>
               </Link>
             </div>
           )}
 
           <Link
             href="/checkout"
-            className="hover:text-primary transition-colors hidden md:block text-sm"
+            className="hover:text-primary transition-colors text-sm hidden md:block font-medium"
           >
             Checkout
           </Link>
+
           <Link
             href="/cart"
             className="hover:text-primary transition-colors flex items-center relative"

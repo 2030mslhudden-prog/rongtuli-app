@@ -269,12 +269,11 @@ export default function UploadPage() {
                 >
                   {bannerPreview ? (
                     <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-outline-variant">
-                      <Image
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         alt="Preview"
                         src={bannerPreview}
-                        fill
-                        className="object-cover"
-                        unoptimized
+                        className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                         <span className="text-white text-sm bg-black/60 px-4 py-2 rounded-full font-bold">ইমেজ পরিবর্তন করুন</span>
