@@ -345,9 +345,27 @@ export default function CheckoutPage() {
                         <p className="text-body-sm text-on-surface">
                           আমাদের <span className="font-bold text-primary capitalize">{paymentMethod}</span> পার্সোনাল নম্বরে মোট <span className="font-bold text-secondary">৳{total.toFixed(2)}</span> সেন্ডমানি (Send Money) করুন।
                         </p>
-                        <p className="text-headline-md text-on-surface font-bold mt-2 tracking-wide select-all text-center p-2 bg-surface rounded border">
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            navigator.clipboard.writeText('01313895658');
+                            const btn = e.currentTarget;
+                            const icon = btn.querySelector('span');
+                            if (icon) {
+                              icon.textContent = 'check';
+                              icon.classList.add('text-secondary');
+                              setTimeout(() => {
+                                icon.textContent = 'content_copy';
+                                icon.classList.remove('text-secondary');
+                              }, 2000);
+                            }
+                          }}
+                          className="w-full text-headline-md text-on-surface font-bold mt-2 tracking-wide text-center p-3 bg-surface hover:bg-surface-container-low rounded-xl border border-surface-variant transition-all flex items-center justify-center gap-2 group cursor-pointer"
+                        >
                           01313895658
-                        </p>
+                          <span className="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:text-primary transition-colors">content_copy</span>
+                        </button>
                       </div>
 
                       <div>

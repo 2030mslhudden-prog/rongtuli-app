@@ -215,8 +215,11 @@ export default function HomePage() {
                 <h3 className="text-headline-md font-headline-md text-[#0F172A]">UI Kits &amp; Templates</h3>
               </div>
               <div className="scroll-track-container">
-                <div className="scroll-track">
-                  {Array(8).fill(uiKitList).flat().map((card, index) => (
+                <div 
+                  className="scroll-track"
+                  style={{ animationDuration: `${Math.max(10, uiKitList.length * 2) * 5}s` }}
+                >
+                  {Array(Math.max(10, Math.ceil(10 / (uiKitList.length || 1)) * 2)).fill(uiKitList).flat().map((card, index) => (
                     <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
                       <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
                       <div className="p-4">
@@ -235,8 +238,11 @@ export default function HomePage() {
                 <h3 className="text-headline-md font-headline-md text-[#0F172A]">Vectors &amp; Illustrations</h3>
               </div>
               <div className="scroll-track-container">
-                <div className="scroll-track reverse">
-                  {Array(8).fill(vectorList).flat().map((card, index) => (
+                <div 
+                  className="scroll-track reverse"
+                  style={{ animationDuration: `${Math.max(10, vectorList.length * 2) * 5}s` }}
+                >
+                  {Array(Math.max(10, Math.ceil(10 / (vectorList.length || 1)) * 2)).fill(vectorList).flat().map((card, index) => (
                     <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
                       <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
                       <div className="p-4">
