@@ -15,6 +15,8 @@ export default function UploadPage() {
   const [sourceFiles, setSourceFiles] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadStep, setUploadStep] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const sourceFilesInputRef = useRef<HTMLInputElement>(null);
@@ -77,51 +79,69 @@ export default function UploadPage() {
     return true;
   };
 
-  const uploadFileToR2 = async (file: File): Promise<{ key: string; url: string } | null> => {
-    try {
+  const uploadFileToR2 = (file: File, onProgress?: (pct: number) => void): Promise<{ key: string; url: string } | null> => {
+    return new Promise((resolve) => {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await fetch('/api/files/upload', { method: 'POST', body: formData });
-      if (response.ok) {
-        const data = await response.json();
-        console.log('File uploaded:', data.key);
-        return { key: data.key, url: data.url };
-      }
-      const err = await response.json();
-      console.error('Upload failed:', err.error || response.statusText);
-      return null;
-    } catch (error) {
-      console.error('File upload error:', error);
-      return null;
-    }
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/files/upload');
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve({ key: data.key, url: data.url });
+          } catch {
+            resolve(null);
+          }
+        } else {
+          console.error('Upload failed:', xhr.responseText);
+          resolve(null);
+        }
+      };
+      xhr.onerror = () => { console.error('XHR error'); resolve(null); };
+      xhr.send(formData);
+    });
   };
 
   const handlePublish = async () => {
     if (!validateForm()) return;
     setIsSubmitting(true);
+    setUploadProgress(0);
     try {
       if (!banner) return;
       
       // Upload Banner Image
-      const bannerResult = await uploadFileToR2(banner);
+      setUploadStep('ব্যানার ইমেজ আপলোড হচ্ছে...');
+      const bannerResult = await uploadFileToR2(banner, (pct) => setUploadProgress(pct));
       if (!bannerResult) {
         alert('ব্যানার ইমেজ আপলোড করতে সমস্যা হয়েছে। R2 স্টোরেজ কনফিগারেশন চেক করুন।');
         setIsSubmitting(false);
+        setUploadStep('');
         return;
       }
 
       // Upload Source File (ZIP) if selected
       let sourceFilesKey: string | null = null;
       if (sourceFiles) {
-        const sourceResult = await uploadFileToR2(sourceFiles);
+        setUploadStep('সোর্স ফাইল (ZIP) আপলোড হচ্ছে...');
+        setUploadProgress(0);
+        const sourceResult = await uploadFileToR2(sourceFiles, (pct) => setUploadProgress(pct));
         if (!sourceResult) {
           alert('সোর্স ফাইল (ZIP) আপলোড করতে সমস্যা হয়েছে।');
           setIsSubmitting(false);
+          setUploadStep('');
           return;
         }
         sourceFilesKey = sourceResult.key; // Store key for signed download URLs
       }
 
+      setUploadStep('প্রোডাক্ট তৈরি হচ্ছে...');
+      setUploadProgress(100);
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -237,7 +257,30 @@ export default function UploadPage() {
             <span>{isSubmitting ? 'আপলোড হচ্ছে...' : 'পাবলিশ করুন'}</span>
           </button>
         </div>
+
+        {/* Upload Progress Bar */}
+        {isSubmitting && (
+          <div className="mt-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-4 animate-fade-in-up">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-body-sm font-medium text-on-surface flex items-center gap-2">
+                <svg className="animate-spin w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                {uploadStep || 'আপলোড শুরু হচ্ছে...'}
+              </p>
+              <span className="text-label-sm font-bold text-primary">{uploadProgress}%</span>
+            </div>
+            <div className="w-full bg-surface-container h-2.5 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Side: Forms */}

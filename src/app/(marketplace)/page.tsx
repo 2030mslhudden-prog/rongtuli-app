@@ -73,7 +73,7 @@ export default function HomePage() {
   };
 
   const uiKits = dbProducts.filter(p => p.category === 'UI Kits' || p.category === 'Templates' || p.category === 'Print Templates' || p.category === 'MAHFIL');
-  const uiKitList = uiKits.length > 0 ? uiKits.map(p => ({
+  const rawUiKitList = uiKits.length > 0 ? uiKits.map(p => ({
     id: p.id,
     title: p.title,
     price: p.price <= 0 ? 'Free' : `৳${p.price}`,
@@ -81,12 +81,23 @@ export default function HomePage() {
   })) : uiKitCards;
 
   const vectors = dbProducts.filter(p => p.category === 'Vectors');
-  const vectorList = vectors.length > 0 ? vectors.map(p => ({
+  const rawVectorList = vectors.length > 0 ? vectors.map(p => ({
     id: p.id,
     title: p.title,
     price: p.price <= 0 ? 'Free' : `৳${p.price}`,
     image: p.imageUrl,
   })) : vectorCards;
+
+  // Ensure both rows have same number of items (pad shorter one by repeating)
+  const SCROLL_DURATION = '40s'; // fixed duration for both rows — same speed
+  const ROW_TARGET = Math.max(rawUiKitList.length, rawVectorList.length, 5);
+  const buildRow = (src: typeof rawUiKitList) => {
+    const repeated: typeof rawUiKitList = [];
+    while (repeated.length < ROW_TARGET * 4) repeated.push(...src);
+    return repeated;
+  };
+  const uiKitList = buildRow(rawUiKitList);
+  const vectorList = buildRow(rawVectorList);
 
   const featuredList = dbProducts.length > 0 ? dbProducts.map(p => ({
     id: p.id,
@@ -217,9 +228,9 @@ export default function HomePage() {
               <div className="scroll-track-container">
                 <div 
                   className="scroll-track"
-                  style={{ animationDuration: `${Math.max(10, uiKitList.length * 2) * 5}s` }}
+                  style={{ animationDuration: SCROLL_DURATION }}
                 >
-                  {Array(Math.max(10, Math.ceil(10 / (uiKitList.length || 1)) * 2)).fill(uiKitList).flat().map((card, index) => (
+                  {uiKitList.map((card, index) => (
                     <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
                       <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
                       <div className="p-4">
@@ -240,9 +251,9 @@ export default function HomePage() {
               <div className="scroll-track-container">
                 <div 
                   className="scroll-track reverse"
-                  style={{ animationDuration: `${Math.max(10, vectorList.length * 2) * 5}s` }}
+                  style={{ animationDuration: SCROLL_DURATION }}
                 >
-                  {Array(Math.max(10, Math.ceil(10 / (vectorList.length || 1)) * 2)).fill(vectorList).flat().map((card, index) => (
+                  {vectorList.map((card, index) => (
                     <Link key={`${card.id}-${index}`} href={`/product/${card.id}`} className="group block w-[300px] flex-shrink-0 relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm transition-all duration-500 hover:scale-105 hover:shadow-sm">
                       <img alt={card.title} className="w-full h-[200px] object-cover transition-transform duration-500 group-hover:scale-105" src={card.image} />
                       <div className="p-4">

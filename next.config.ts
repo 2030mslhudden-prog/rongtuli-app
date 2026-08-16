@@ -15,6 +15,15 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '**.r2.cloudflarestorage.com',
       },
+      {
+        protocol: 'https',
+        hostname: '**.cloudflarestorage.com',
+      },
+      // Allow any https hostname (covers custom R2 domains)
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
     ],
   },
 };
