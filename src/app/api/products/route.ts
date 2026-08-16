@@ -31,7 +31,15 @@ export async function GET(request: Request) {
       include: { author: { select: { name: true, email: true, avatarUrl: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    return NextResponse.json({ products });
+
+    const fixedProducts = products.map(p => {
+      if (p.imageUrl && p.imageUrl.includes('%2F')) {
+        return { ...p, imageUrl: p.imageUrl.replace(/%2F/g, '/') };
+      }
+      return p;
+    });
+
+    return NextResponse.json({ products: fixedProducts });
   } catch (error) {
     console.error('Fetch products error:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });

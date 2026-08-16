@@ -16,7 +16,6 @@ export default function Navigation() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const totalItems = useCartStore((state) => state.getTotalItems());
 
   useEffect(() => {
@@ -36,12 +35,6 @@ export default function Navigation() {
     router.refresh();
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
 
   return (
     <nav className="sticky top-0 z-50 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant shadow-sm">
@@ -59,28 +52,6 @@ export default function Navigation() {
           />
         </Link>
 
-        {/* Search Bar */}
-        <form
-          onSubmit={handleSearch}
-          className="hidden md:flex flex-1 max-w-md items-center bg-surface-container rounded-full px-4 py-2 border border-outline-variant focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all"
-        >
-          <span className="material-symbols-outlined text-on-surface-variant text-[20px] mr-2 shrink-0">search</span>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ডিজাইন খুঁজুন..."
-            className="bg-transparent flex-1 text-body-md text-on-surface placeholder:text-on-surface-variant/60 outline-none border-none"
-          />
-          {searchQuery && (
-            <button
-              type="submit"
-              className="ml-2 px-4 py-1 bg-primary text-white rounded-full text-label-sm font-bold hover:opacity-90 transition-opacity shrink-0"
-            >
-              খুঁজুন
-            </button>
-          )}
-        </form>
 
         {/* Right Utility */}
         <div className="flex items-center gap-3 shrink-0">
@@ -95,31 +66,25 @@ export default function Navigation() {
             <div className="flex items-center gap-2">
               <Link
                 href="/dashboard"
-                className="hover:text-primary transition-colors flex items-center gap-1.5 font-bold text-sm"
+                className="hover:text-[#1F2937] text-on-surface-variant transition-colors text-sm font-medium"
               >
-                <div className="w-7 h-7 rounded-full bg-[#1a6b4a] text-white flex items-center justify-center text-xs font-bold shrink-0">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="hidden lg:inline max-w-[100px] truncate">{user.name}</span>
+                My account
               </Link>
               <button
                 onClick={handleLogout}
-                className="hover:text-error transition-colors text-on-surface-variant flex items-center gap-0.5"
+                className="hover:text-error transition-colors text-on-surface-variant flex items-center gap-0.5 ml-2"
                 title="লগআউট"
               >
-                <span className="material-symbols-outlined text-[20px]">logout</span>
+                <span className="material-symbols-outlined text-[18px]">logout</span>
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Link
-                href="/login"
-                className="hover:text-primary transition-colors text-sm font-semibold flex items-center gap-1"
-              >
-                <span className="material-symbols-outlined text-[18px]">login</span>
-                <span className="hidden sm:inline">লগইন</span>
-              </Link>
-            </div>
+            <Link
+              href="/login"
+              className="hover:text-[#1F2937] text-on-surface-variant transition-colors text-sm font-medium"
+            >
+              My account
+            </Link>
           )}
 
           <Link

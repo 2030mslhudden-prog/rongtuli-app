@@ -55,7 +55,7 @@ export function getR2Client(): S3Client {
 
 export function buildPublicObjectUrl(key: string): string {
   const { publicUrl, endpoint, bucket } = getR2Config();
-  const normalizedKey = encodeURIComponent(key);
+  const normalizedKey = key.split('/').map(encodeURIComponent).join('/');
 
   if (publicUrl) {
     return `${publicUrl.replace(/\/$/, '')}/${normalizedKey}`;
